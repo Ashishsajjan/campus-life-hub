@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Mail, Calendar, CheckSquare, Loader2, ExternalLink } from "lucide-react";
+import { Mail, Calendar, CheckSquare, Loader2, ExternalLink, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -21,6 +21,7 @@ export default function AIMail() {
   const [classroomAnnouncements, setClassroomAnnouncements] = useState<any[]>([]);
   const [fetchingGmail, setFetchingGmail] = useState(false);
   const [fetchingClassroom, setFetchingClassroom] = useState(false);
+  const [analyzingEmail, setAnalyzingEmail] = useState(false);
   const [results, setResults] = useState<{
     alerts: string[];
     tasks: string[];
@@ -193,7 +194,82 @@ export default function AIMail() {
     }
   };
 
-  // Mock AI analysis for pasted text
+  // Handle clicking on a Gmail message to analyze it
+  const handleMessageClick = async (message: any) => {
+    const emailContent = `
+Subject: ${message.subject}
+From: ${message.from}
+Date: ${message.date}
+
+${message.snippet}
+
+${message.body || ''}
+    `.trim();
+    
+    setInputText(emailContent);
+    
+    // Automatically trigger analysis
+    await analyzeEmail(emailContent);
+  };
+
+  // AI-powered email analysis
+  const analyzeEmail = async (content?: string) => {
+    const textToAnalyze = content || inputText;
+    
+    if (!textToAnalyze.trim()) {
+      toast.error("Please provide email content to analyze");
+      return;
+    }
+
+    setAnalyzingEmail(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please log in first");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('analyze-email', {
+        body: { emailContent: textToAnalyze },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        if (data.error.includes('Rate limit')) {
+          toast.error("AI rate limit reached. Please try again later.");
+        } else if (data.error.includes('usage limit')) {
+          toast.error("AI usage limit reached. Please add credits in Settings.");
+        } else {
+          toast.error(data.error);
+        }
+        return;
+      }
+
+      toast.success(`Created ${data.tasksCreated} tasks and ${data.eventsCreated} calendar events!`);
+      
+      setResults({
+        alerts: [`📧 Email analyzed successfully`],
+        tasks: data.tasks.map((t: any) => t.title),
+        summary: data.summary
+      });
+
+      // Clear the input after successful analysis
+      setInputText("");
+      
+    } catch (error: any) {
+      console.error('Error analyzing email:', error);
+      toast.error(error.message || "Failed to analyze email");
+    } finally {
+      setAnalyzingEmail(false);
+    }
+  };
+
+  // Mock AI analysis for pasted text (kept for backward compatibility)
   const handleAnalyze = async () => {
     if (!inputText.trim()) {
       toast.error("Please paste some text to analyze");
@@ -290,14 +366,19 @@ export default function AIMail() {
           </CardHeader>
           <CardContent className="space-y-4">
             {gmailMessages.map((message) => (
-              <div key={message.id} className="p-4 border rounded-lg space-y-2">
+              <div 
+                key={message.id} 
+                className="p-4 border rounded-lg space-y-2 cursor-pointer hover:border-primary transition-colors"
+                onClick={() => handleMessageClick(message)}
+              >
                 <div className="flex justify-between items-start">
                   <h4 className="font-semibold">{message.subject}</h4>
-                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                  <Sparkles className="h-4 w-4 text-primary" />
                 </div>
                 <p className="text-sm text-muted-foreground">From: {message.from}</p>
                 <p className="text-xs text-muted-foreground">{message.date}</p>
                 <p className="text-sm mt-2">{message.snippet}</p>
+                <p className="text-xs text-primary mt-2">Click to analyze with AI</p>
               </div>
             ))}
           </CardContent>
@@ -332,26 +413,30 @@ export default function AIMail() {
       {/* Text Analysis Section */}
       <Card>
         <CardHeader>
-          <CardTitle>Analyze Text Manually</CardTitle>
-          <CardDescription>Paste email or announcement text to analyze</CardDescription>
+          <CardTitle>Analyze Email with AI</CardTitle>
+          <CardDescription>Paste email content or click on a Gmail message above to automatically extract tasks and deadlines</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Textarea
-            placeholder="Paste your email or announcement text here..."
+            placeholder="Paste your email or announcement text here, or click on a Gmail message above..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             rows={6}
           />
-          <Button onClick={handleAnalyze} disabled={analyzing || !inputText.trim()} className="w-full">
-            {analyzing ? (
+          <Button 
+            onClick={() => analyzeEmail()} 
+            disabled={analyzingEmail || !inputText.trim()} 
+            className="w-full"
+          >
+            {analyzingEmail ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analyzing...
+                Analyzing with AI...
               </>
             ) : (
               <>
-                <CheckSquare className="mr-2 h-4 w-4" />
-                Analyze Messages
+                <Sparkles className="mr-2 h-4 w-4" />
+                Analyze & Create Tasks
               </>
             )}
           </Button>
@@ -406,8 +491,9 @@ export default function AIMail() {
       <Card className="border-primary/20">
         <CardContent className="pt-6">
           <p className="text-sm text-muted-foreground">
-            <strong>Note:</strong> Gmail and Classroom integration uses real OAuth authentication. 
-            The text analyzer provides mock analysis for demonstration purposes.
+            <strong>How it works:</strong> Click on any Gmail message to automatically analyze it with AI. 
+            The system will extract tasks, deadlines, and create calendar events for you. 
+            You can also manually paste email content for analysis.
           </p>
         </CardContent>
       </Card>
