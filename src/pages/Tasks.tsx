@@ -22,7 +22,9 @@ export default function Tasks() {
   const [events, setEvents] = useState<any[]>([]);
   const [filter, setFilter] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDayDialogOpen, setIsDayDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedDayDate, setSelectedDayDate] = useState<Date | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -103,6 +105,11 @@ export default function Tasks() {
       deadline: format(defaultDeadline, "yyyy-MM-dd'T'HH:mm")
     });
     setIsDialogOpen(true);
+  };
+
+  const openDayDialog = (date: Date) => {
+    setSelectedDayDate(date);
+    setIsDayDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -308,9 +315,10 @@ export default function Tasks() {
           return (
             <Card
               key={idx}
-              className={`glass-strong ${
+              className={`glass-strong cursor-pointer hover:border-primary/50 transition-all ${
                 isToday ? 'border-primary border-2' : ''
               }`}
+              onClick={() => openDayDialog(day)}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -324,81 +332,145 @@ export default function Tasks() {
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8"
-                    onClick={() => openAddTaskDialog(day)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openAddTaskDialog(day);
+                    }}
                   >
                     <Plus className="w-4 h-4" />
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 min-h-[200px]">
-                {/* Calendar Events */}
-                {dayEvents.map((event) => (
-                  <div
-                    key={`event-${event.id}`}
-                    className="p-2 rounded-lg bg-accent/20 text-accent border border-accent/30"
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs">📅</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate">{event.title}</p>
-                        {event.start_time && (
-                          <p className="text-xs text-muted-foreground">{event.start_time}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                
-                {/* Tasks */}
-                {dayTasks.map((task) => (
-                  <div
-                    key={`task-${task.id}`}
-                    className="p-2 rounded-lg glass border cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => toggleComplete(task)}
-                  >
-                    <div className="flex items-start gap-2">
-                      <div
-                        className={`w-5 h-5 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
-                          task.is_completed
-                            ? 'bg-primary border-primary'
-                            : 'border-foreground/40 bg-background hover:border-primary/60'
-                        }`}
-                      >
-                        {task.is_completed && <Check className="w-4 h-4 text-primary-foreground" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-medium truncate ${
-                          task.is_completed ? 'line-through text-muted-foreground' : ''
-                        }`}>
-                          {task.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(task.deadline), 'HH:mm')}
-                          {task.subject && ` • ${task.subject}`}
-                        </p>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded text-xs ${
-                        task.priority === 'high' ? 'bg-destructive/20 text-destructive' :
-                        task.priority === 'medium' ? 'bg-primary/20 text-primary' :
-                        'bg-secondary/20 text-secondary'
-                      }`}>
-                        {task.priority}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                
-                {dayTasks.length === 0 && dayEvents.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground text-sm">
-                    <p>No tasks yet</p>
-                    <p className="text-xs mt-1">Click + to add</p>
-                  </div>
-                )}
+                {/* Task and Event Count */}
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">
+                    {dayTasks.length + dayEvents.length === 0 ? (
+                      <>No tasks</>
+                    ) : (
+                      <>
+                        {dayTasks.length} task{dayTasks.length !== 1 ? 's' : ''}
+                        {dayEvents.length > 0 && ` • ${dayEvents.length} event${dayEvents.length !== 1 ? 's' : ''}`}
+                      </>
+                    )}
+                  </p>
+                  <p className="text-xs text-primary mt-2">Click to view</p>
+                </div>
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {/* Day Details Dialog */}
+      <Dialog open={isDayDialogOpen} onOpenChange={setIsDayDialogOpen}>
+        <DialogContent className="glass-strong max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedDayDate && format(selectedDayDate, 'EEEE, MMMM d, yyyy')}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedDayDate && (
+            <div className="space-y-4">
+              {/* Add Task Button */}
+              <Button 
+                onClick={() => {
+                  setIsDayDialogOpen(false);
+                  openAddTaskDialog(selectedDayDate);
+                }}
+                className="w-full"
+                variant="outline"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Task for This Day
+              </Button>
+
+              {/* Events Section */}
+              {getEventsForDay(selectedDayDate).length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm text-muted-foreground">Calendar Events</h3>
+                  {getEventsForDay(selectedDayDate).map((event) => (
+                    <div
+                      key={`event-${event.id}`}
+                      className="p-3 rounded-lg bg-accent/20 border border-accent/30"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-lg">📅</span>
+                        <div className="flex-1">
+                          <p className="font-medium">{event.title}</p>
+                          {event.start_time && (
+                            <p className="text-sm text-muted-foreground">{event.start_time}</p>
+                          )}
+                          {event.subject && (
+                            <p className="text-sm text-muted-foreground">{event.subject}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Tasks Section */}
+              {getTasksForDay(selectedDayDate).length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm text-muted-foreground">Tasks</h3>
+                  {getTasksForDay(selectedDayDate).map((task) => (
+                    <div
+                      key={`task-${task.id}`}
+                      className="p-3 rounded-lg glass border"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center cursor-pointer transition-all ${
+                            task.is_completed
+                              ? 'bg-primary border-primary'
+                              : 'border-foreground/40 bg-background hover:border-primary/60'
+                          }`}
+                          onClick={() => toggleComplete(task)}
+                        >
+                          {task.is_completed && <Check className="w-4 h-4 text-primary-foreground" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className={`font-medium ${
+                            task.is_completed ? 'line-through text-muted-foreground' : ''
+                          }`}>
+                            {task.title}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {format(new Date(task.deadline), 'HH:mm')}
+                            {task.subject && ` • ${task.subject}`}
+                          </p>
+                          {task.description && (
+                            <p className="text-sm text-muted-foreground mt-2">{task.description}</p>
+                          )}
+                        </div>
+                        <span className={`px-3 py-1 rounded text-xs font-medium ${
+                          task.priority === 'high' ? 'bg-destructive/20 text-destructive' :
+                          task.priority === 'medium' ? 'bg-primary/20 text-primary' :
+                          'bg-secondary/20 text-secondary'
+                        }`}>
+                          {task.priority}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Empty State */}
+              {getTasksForDay(selectedDayDate).length === 0 && 
+               getEventsForDay(selectedDayDate).length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No tasks or events for this day</p>
+                  <p className="text-sm mt-2">Click "Add Task" to create one</p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">
