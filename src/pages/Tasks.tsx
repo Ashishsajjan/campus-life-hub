@@ -22,6 +22,7 @@ export default function Tasks() {
   const [events, setEvents] = useState<any[]>([]);
   const [filter, setFilter] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -92,6 +93,18 @@ export default function Tasks() {
     if (data) setEvents(data);
   };
 
+  const openAddTaskDialog = (date: Date) => {
+    setSelectedDate(date);
+    // Set default deadline to selected date at 9 AM
+    const defaultDeadline = new Date(date);
+    defaultDeadline.setHours(9, 0, 0, 0);
+    setFormData({
+      ...formData,
+      deadline: format(defaultDeadline, "yyyy-MM-dd'T'HH:mm")
+    });
+    setIsDialogOpen(true);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { data: { user } } = await supabase.auth.getUser();
@@ -118,7 +131,7 @@ export default function Tasks() {
       event_type: 'assignment',
       event_date: format(deadlineDate, 'yyyy-MM-dd'),
       start_time: format(deadlineDate, 'HH:mm'),
-      end_time: format(addDays(deadlineDate, 0), 'HH:mm'),
+      end_time: format(deadlineDate, 'HH:mm'),
       subject: formData.subject,
       notes: `Task deadline: ${formData.description}`
     });
@@ -129,8 +142,10 @@ export default function Tasks() {
 
     toast({ title: 'Success', description: 'Task created and added to calendar' });
     setIsDialogOpen(false);
+    setSelectedDate(null);
     setFormData({ title: '', description: '', category: 'Study', subject: '', deadline: '', priority: 'medium' });
     loadTasks();
+    loadEvents();
   };
 
   const toggleComplete = async (task: any) => {
@@ -196,12 +211,6 @@ export default function Tasks() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Smart Tasks</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" />
-              Add Task
-            </Button>
-          </DialogTrigger>
           <DialogContent className="glass-strong max-w-md">
             <DialogHeader>
               <DialogTitle>Create New Task</DialogTitle>
@@ -276,82 +285,110 @@ export default function Tasks() {
         </Dialog>
       </div>
 
-      {/* Weekly Schedule Strip */}
-      <Card className="glass-strong">
-        <CardHeader>
-          <CardTitle>This Week's Schedule</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-7 gap-2">
-            {weekDays.map((day, idx) => {
-              const dayTasks = getTasksForDay(day);
-              const dayEvents = getEventsForDay(day);
-              const isToday = isSameDay(day, new Date());
-              const totalItems = dayTasks.length + dayEvents.length;
-              
-              return (
-                <div
-                  key={idx}
-                  className={`p-3 rounded-xl border ${
-                    isToday ? 'border-primary bg-primary/10' : 'border-glass-border glass'
-                  } min-h-[120px]`}
-                >
-                  <div className="text-center mb-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {format(day, 'EEE')}
-                    </p>
-                    <p className={`text-lg font-bold ${isToday ? 'text-primary' : ''}`}>
-                      {format(day, 'd')}
+      {/* Weekly Day Boxes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+        {weekDays.map((day, idx) => {
+          const dayTasks = getTasksForDay(day);
+          const dayEvents = getEventsForDay(day);
+          const isToday = isSameDay(day, new Date());
+          const dayName = format(day, 'EEEE');
+          const shortDay = format(day, 'EEE');
+          const dateNum = format(day, 'd');
+          
+          return (
+            <Card
+              key={idx}
+              className={`glass-strong ${
+                isToday ? 'border-primary border-2' : ''
+              }`}
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">{shortDay}</CardTitle>
+                    <p className={`text-2xl font-bold ${isToday ? 'text-primary' : ''}`}>
+                      {dateNum}
                     </p>
                   </div>
-                  <div className="space-y-1">
-                    {/* Show calendar events first */}
-                    {dayEvents.slice(0, 2).map((event) => (
-                      <div
-                        key={`event-${event.id}`}
-                        className="text-xs p-1 rounded bg-accent/20 text-accent truncate"
-                      >
-                        {event.start_time && `${event.start_time} `}
-                        📅 {event.title}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    onClick={() => openAddTaskDialog(day)}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 min-h-[200px]">
+                {/* Calendar Events */}
+                {dayEvents.map((event) => (
+                  <div
+                    key={`event-${event.id}`}
+                    className="p-2 rounded-lg bg-accent/20 text-accent border border-accent/30"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-xs">📅</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{event.title}</p>
+                        {event.start_time && (
+                          <p className="text-xs text-muted-foreground">{event.start_time}</p>
+                        )}
                       </div>
-                    ))}
-                    {/* Then show tasks */}
-                    {dayTasks.slice(0, Math.max(1, 3 - dayEvents.length)).map((task) => (
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Tasks */}
+                {dayTasks.map((task) => (
+                  <div
+                    key={`task-${task.id}`}
+                    className="p-2 rounded-lg glass border cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => toggleComplete(task)}
+                  >
+                    <div className="flex items-start gap-2">
                       <div
-                        key={`task-${task.id}`}
-                        className="flex items-start gap-1 text-xs group cursor-pointer"
-                        onClick={() => toggleComplete(task)}
+                        className={`w-4 h-4 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center ${
+                          task.is_completed
+                            ? 'bg-primary border-primary'
+                            : 'border-muted-foreground'
+                        }`}
                       >
-                        <div
-                          className={`w-3 h-3 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center ${
-                            task.is_completed
-                              ? 'bg-primary border-primary'
-                              : 'border-muted-foreground group-hover:border-primary'
-                          }`}
-                        >
-                          {task.is_completed && <Check className="w-2 h-2 text-primary-foreground" />}
-                        </div>
-                        <p
-                          className={`line-clamp-2 ${
-                            task.is_completed ? 'line-through text-muted-foreground' : ''
-                          }`}
-                        >
-                          {format(new Date(task.deadline), 'HH:mm')} {task.title}
+                        {task.is_completed && <Check className="w-3 h-3 text-primary-foreground" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-xs font-medium truncate ${
+                          task.is_completed ? 'line-through text-muted-foreground' : ''
+                        }`}>
+                          {task.title}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(task.deadline), 'HH:mm')}
+                          {task.subject && ` • ${task.subject}`}
                         </p>
                       </div>
-                    ))}
-                    {totalItems > 3 && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        +{totalItems - 3} more
-                      </p>
-                    )}
+                      <span className={`px-2 py-0.5 rounded text-xs ${
+                        task.priority === 'high' ? 'bg-destructive/20 text-destructive' :
+                        task.priority === 'medium' ? 'bg-primary/20 text-primary' :
+                        'bg-secondary/20 text-secondary'
+                      }`}>
+                        {task.priority}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+                ))}
+                
+                {dayTasks.length === 0 && dayEvents.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    <p>No tasks yet</p>
+                    <p className="text-xs mt-1">Click + to add</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">
