@@ -25,7 +25,6 @@ export default function AIMail() {
   const [results, setResults] = useState<{
     alerts: string[];
     tasks: string[];
-    summary: string;
   } | null>(null);
 
   // Check connection status on mount
@@ -264,8 +263,7 @@ ${message.body || ''}
           `✅ Created ${data.tasksCreated} tasks`,
           tasksWithReminders > 0 ? `⏰ Set ${tasksWithReminders} reminders` : ''
         ].filter(Boolean),
-        tasks: data.tasks.map((t: any) => `${t.title}${t.reminder_time ? ' (reminder set)' : ''}`),
-        summary: data.summary
+        tasks: data.tasks.map((t: any) => `${t.title}${t.reminder_time ? ' (reminder set)' : ''}`)
       });
 
       // Clear the input after successful analysis
@@ -311,8 +309,7 @@ ${message.body || ''}
 
       setResults({
         alerts: mockAlerts,
-        tasks: mockTasks.length > 0 ? mockTasks : ['No specific tasks detected'],
-        summary: inputText.length > 150 ? inputText.substring(0, 150) + '...' : inputText
+        tasks: mockTasks.length > 0 ? mockTasks : ['No specific tasks detected']
       });
 
       setAnalyzing(false);
@@ -483,15 +480,6 @@ ${message.body || ''}
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-lg">Summary</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{results.summary}</p>
             </CardContent>
           </Card>
         </div>
