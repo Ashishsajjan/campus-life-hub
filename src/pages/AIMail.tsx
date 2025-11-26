@@ -60,7 +60,10 @@ export default function AIMail() {
       }
 
       const { data, error } = await supabase.functions.invoke('google-oauth-start', {
-        body: { provider: 'gmail' }
+        body: { provider: 'gmail' },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
 
       if (error) throw error;
@@ -94,7 +97,10 @@ export default function AIMail() {
       }
 
       const { data, error } = await supabase.functions.invoke('google-oauth-start', {
-        body: { provider: 'classroom' }
+        body: { provider: 'classroom' },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
 
       if (error) throw error;

@@ -6,7 +6,7 @@ serve(async (req) => {
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state'); // provider name
+    const stateParam = url.searchParams.get('state');
     const error = url.searchParams.get('error');
 
     if (error) {
@@ -17,11 +17,13 @@ serve(async (req) => {
       );
     }
 
-    if (!code || !state) {
+    if (!code || !stateParam) {
       throw new Error('Missing code or state parameter');
     }
 
-    console.log(`Processing OAuth callback for provider: ${state}`);
+    // Decode state parameter to get provider and userId
+    const { provider, userId } = JSON.parse(stateParam);
+    console.log(`Processing OAuth callback for provider: ${provider} for user: ${userId}`);
 
     const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
     const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
@@ -54,20 +56,7 @@ serve(async (req) => {
       throw new Error('Failed to get access token');
     }
 
-    // Get user from authorization header
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      throw new Error('No authorization header');
-    }
-
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (userError || !user) {
-      throw new Error('Failed to get user');
-    }
 
     // Store tokens in database
     const tokenExpiry = tokens.expires_in 
@@ -77,8 +66,8 @@ serve(async (req) => {
     const { error: dbError } = await supabase
       .from('oauth_tokens')
       .upsert({
-        user_id: user.id,
-        provider: state,
+        user_id: userId,
+        provider: provider,
         access_token: tokens.access_token,
         refresh_token: tokens.refresh_token,
         token_expiry: tokenExpiry,
@@ -95,7 +84,7 @@ serve(async (req) => {
     console.log('Tokens stored successfully');
 
     return new Response(
-      `<html><body><script>window.opener.postMessage({type:'oauth-success',provider:'${state}'},'*');window.close();</script><p>Authentication successful! Closing window...</p></body></html>`,
+      `<html><body><script>window.opener.postMessage({type:'oauth-success',provider:'${provider}'},'*');window.close();</script><p>Authentication successful! Closing window...</p></body></html>`,
       { headers: { 'Content-Type': 'text/html' } }
     );
   } catch (error) {
