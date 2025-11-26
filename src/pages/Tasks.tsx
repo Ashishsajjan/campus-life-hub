@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Check } from 'lucide-react';
 import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
+import { Checkbox } from '@/components/ui/checkbox';
 
 /**
  * Enhanced Smart Tasks with Weekly Schedule Strip
@@ -422,16 +423,11 @@ export default function Tasks() {
                       className="p-3 rounded-lg glass border"
                     >
                       <div className="flex items-start gap-3">
-                        <div
-                          className={`w-5 h-5 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center cursor-pointer transition-all ${
-                            task.is_completed
-                              ? 'bg-primary border-primary'
-                              : 'border-foreground/40 bg-background hover:border-primary/60'
-                          }`}
-                          onClick={() => toggleComplete(task)}
-                        >
-                          {task.is_completed && <Check className="w-4 h-4 text-primary-foreground" />}
-                        </div>
+                        <Checkbox
+                          checked={task.is_completed}
+                          onCheckedChange={() => toggleComplete(task)}
+                          className="mt-1"
+                        />
                         <div className="flex-1">
                           <p className={`font-medium ${
                             task.is_completed ? 'line-through text-muted-foreground' : ''
