@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Flame, ListChecks, Calendar, MapPin, Timer } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -42,6 +43,22 @@ export default function Dashboard() {
       .limit(5);
 
     if (events) setUpcomingEvents(events);
+  };
+
+  const toggleEventComplete = async (event: any) => {
+    const newCompleted = !event.is_completed;
+    
+    const { error } = await supabase
+      .from('events')
+      .update({ 
+        is_completed: newCompleted,
+        completed_at: newCompleted ? new Date().toISOString() : null
+      })
+      .eq('id', event.id);
+
+    if (!error) {
+      loadDashboardData();
+    }
   };
 
   return (
@@ -97,9 +114,15 @@ export default function Dashboard() {
             <p className="text-muted-foreground">No upcoming events</p>
           ) : (
             upcomingEvents.map((event) => (
-              <div key={event.id} className="flex items-center justify-between p-3 glass rounded-xl">
-                <div>
-                  <p className="font-medium">{event.title}</p>
+              <div key={event.id} className="flex items-center gap-3 p-3 glass rounded-xl">
+                <Checkbox
+                  checked={event.is_completed}
+                  onCheckedChange={() => toggleEventComplete(event)}
+                />
+                <div className="flex-1">
+                  <p className={`font-medium ${event.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                    {event.title}
+                  </p>
                   <p className="text-sm text-muted-foreground">
                     {event.subject} • {format(new Date(event.event_date), 'MMM d')}
                     {event.start_time && ` • ${event.start_time}`}
