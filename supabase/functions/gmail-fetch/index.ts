@@ -44,18 +44,74 @@ serve(async (req) => {
 
     console.log('Fetching Gmail messages...');
 
+    // Check if token is expired and refresh if needed
+    let accessToken = tokenData.access_token;
+    if (tokenData.token_expiry && new Date(tokenData.token_expiry) < new Date()) {
+      console.log('Token expired, refreshing...');
+      
+      if (!tokenData.refresh_token) {
+        throw new Error('No refresh token available. Please reconnect your Gmail account.');
+      }
+
+      const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
+      const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+
+      const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: clientId!,
+          client_secret: clientSecret!,
+          refresh_token: tokenData.refresh_token,
+          grant_type: 'refresh_token',
+        }),
+      });
+
+      const newTokens = await refreshResponse.json();
+      
+      if (!newTokens.access_token) {
+        throw new Error('Failed to refresh access token. Please reconnect your Gmail account.');
+      }
+
+      accessToken = newTokens.access_token;
+
+      // Update stored token
+      await supabase
+        .from('oauth_tokens')
+        .update({
+          access_token: newTokens.access_token,
+          token_expiry: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .eq('provider', 'gmail');
+
+      console.log('Token refreshed successfully');
+    }
+
     // Fetch recent messages from Gmail API
     const messagesResponse = await fetch(
       'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=10&labelIds=INBOX',
       {
         headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       }
     );
 
     if (!messagesResponse.ok) {
-      throw new Error(`Gmail API error: ${messagesResponse.statusText}`);
+      const errorBody = await messagesResponse.text();
+      console.error('Gmail API error details:', {
+        status: messagesResponse.status,
+        statusText: messagesResponse.statusText,
+        body: errorBody
+      });
+      
+      if (messagesResponse.status === 403) {
+        throw new Error('Gmail API is not enabled. Please enable the Gmail API in your Google Cloud Console: https://console.cloud.google.com/apis/library/gmail.googleapis.com');
+      }
+      
+      throw new Error(`Gmail API error: ${messagesResponse.statusText}. ${errorBody}`);
     }
 
     const messagesData = await messagesResponse.json();
@@ -68,7 +124,7 @@ serve(async (req) => {
           `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}?format=full`,
           {
             headers: {
-              'Authorization': `Bearer ${tokenData.access_token}`,
+              'Authorization': `Bearer ${accessToken}`,
             },
           }
         );

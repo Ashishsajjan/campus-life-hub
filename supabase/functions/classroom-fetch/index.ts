@@ -44,18 +44,74 @@ serve(async (req) => {
 
     console.log('Fetching Google Classroom courses...');
 
+    // Check if token is expired and refresh if needed
+    let accessToken = tokenData.access_token;
+    if (tokenData.token_expiry && new Date(tokenData.token_expiry) < new Date()) {
+      console.log('Token expired, refreshing...');
+      
+      if (!tokenData.refresh_token) {
+        throw new Error('No refresh token available. Please reconnect your Google Classroom account.');
+      }
+
+      const clientId = Deno.env.get('GOOGLE_CLIENT_ID');
+      const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET');
+
+      const refreshResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: clientId!,
+          client_secret: clientSecret!,
+          refresh_token: tokenData.refresh_token,
+          grant_type: 'refresh_token',
+        }),
+      });
+
+      const newTokens = await refreshResponse.json();
+      
+      if (!newTokens.access_token) {
+        throw new Error('Failed to refresh access token. Please reconnect your Google Classroom account.');
+      }
+
+      accessToken = newTokens.access_token;
+
+      // Update stored token
+      await supabase
+        .from('oauth_tokens')
+        .update({
+          access_token: newTokens.access_token,
+          token_expiry: new Date(Date.now() + newTokens.expires_in * 1000).toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .eq('provider', 'classroom');
+
+      console.log('Token refreshed successfully');
+    }
+
     // Fetch courses from Classroom API
     const coursesResponse = await fetch(
       'https://classroom.googleapis.com/v1/courses?courseStates=ACTIVE',
       {
         headers: {
-          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       }
     );
 
     if (!coursesResponse.ok) {
-      throw new Error(`Classroom API error: ${coursesResponse.statusText}`);
+      const errorBody = await coursesResponse.text();
+      console.error('Classroom API error details:', {
+        status: coursesResponse.status,
+        statusText: coursesResponse.statusText,
+        body: errorBody
+      });
+      
+      if (coursesResponse.status === 403) {
+        throw new Error('Google Classroom API is not enabled. Please enable the Google Classroom API in your Google Cloud Console: https://console.cloud.google.com/apis/library/classroom.googleapis.com');
+      }
+      
+      throw new Error(`Classroom API error: ${coursesResponse.statusText}. ${errorBody}`);
     }
 
     const coursesData = await coursesResponse.json();
@@ -68,7 +124,7 @@ serve(async (req) => {
           `https://classroom.googleapis.com/v1/courses/${course.id}/announcements?pageSize=5`,
           {
             headers: {
-              'Authorization': `Bearer ${tokenData.access_token}`,
+              'Authorization': `Bearer ${accessToken}`,
             },
           }
         );
