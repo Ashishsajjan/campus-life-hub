@@ -25,11 +25,11 @@ export default function Dashboard() {
       .from('user_settings')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     if (settings) {
-      setStreak({ current: settings.current_streak, best: settings.best_streak });
-      setPomodoroToday(settings.pomodoro_sessions_today);
+      setStreak({ current: settings.current_streak || 0, best: settings.best_streak || 0 });
+      setPomodoroToday(settings.pomodoro_sessions_today || 0);
     }
 
     // Load today's tasks
@@ -50,14 +50,15 @@ export default function Dashboard() {
 
     if (tasks) setTodayTasks(tasks);
 
-    // Load upcoming events
+    // Load today's and upcoming events from calendar
     const { data: events } = await supabase
       .from('events')
       .select('*')
       .eq('user_id', user.id)
       .gte('event_date', format(new Date(), 'yyyy-MM-dd'))
-      .order('event_date')
-      .limit(3);
+      .order('event_date', { ascending: true })
+      .order('start_time', { ascending: true })
+      .limit(5);
 
     if (events) setUpcomingEvents(events);
   };
@@ -113,33 +114,65 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Today's Tasks */}
-      <Card className="glass-strong">
-        <CardHeader>
-          <CardTitle>Today's Tasks</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {todayTasks.length === 0 ? (
-            <p className="text-muted-foreground">No tasks for today. Great job!</p>
-          ) : (
-            todayTasks.map((task) => (
-              <div key={task.id} className="flex items-center justify-between p-3 glass rounded-xl">
-                <div>
-                  <p className="font-medium">{task.title}</p>
-                  <p className="text-sm text-muted-foreground">{task.subject}</p>
+      {/* Today's Tasks & Events */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="glass-strong">
+          <CardHeader>
+            <CardTitle>Today's Tasks</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {todayTasks.length === 0 ? (
+              <p className="text-muted-foreground">No tasks for today. Great job!</p>
+            ) : (
+              todayTasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between p-3 glass rounded-xl">
+                  <div>
+                    <p className="font-medium">{task.title}</p>
+                    <p className="text-sm text-muted-foreground">{task.subject}</p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    task.priority === 'high' ? 'bg-destructive/20 text-destructive' :
+                    task.priority === 'medium' ? 'bg-primary/20 text-primary' :
+                    'bg-secondary/20 text-secondary'
+                  }`}>
+                    {task.priority}
+                  </span>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  task.priority === 'high' ? 'bg-destructive/20 text-destructive' :
-                  task.priority === 'medium' ? 'bg-primary/20 text-primary' :
-                  'bg-secondary/20 text-secondary'
-                }`}>
-                  {task.priority}
-                </span>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="glass-strong">
+          <CardHeader>
+            <CardTitle>Upcoming Events</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {upcomingEvents.length === 0 ? (
+              <p className="text-muted-foreground">No upcoming events</p>
+            ) : (
+              upcomingEvents.map((event) => (
+                <div key={event.id} className="flex items-center justify-between p-3 glass rounded-xl">
+                  <div>
+                    <p className="font-medium">{event.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {event.subject} • {format(new Date(event.event_date), 'MMM d')}
+                      {event.start_time && ` • ${event.start_time}`}
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    event.event_type === 'exam' ? 'bg-destructive/20 text-destructive' :
+                    event.event_type === 'class' ? 'bg-secondary/20 text-secondary' :
+                    'bg-primary/20 text-primary'
+                  }`}>
+                    {event.event_type}
+                  </span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Quick Actions */}
       <Card className="glass-strong">

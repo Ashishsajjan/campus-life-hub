@@ -19,6 +19,7 @@ import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
  */
 export default function Tasks() {
   const [tasks, setTasks] = useState<any[]>([]);
+  const [events, setEvents] = useState<any[]>([]);
   const [filter, setFilter] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -37,6 +38,7 @@ export default function Tasks() {
 
   useEffect(() => {
     loadTasks();
+    loadEvents();
   }, [filter]);
 
   const loadTasks = async () => {
@@ -70,6 +72,24 @@ export default function Tasks() {
 
     const { data } = await query;
     if (data) setTasks(data);
+  };
+
+  const loadEvents = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Load events for current week
+    const weekEnd = addDays(weekStart, 7);
+    const { data } = await supabase
+      .from('events')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('event_date', format(weekStart, 'yyyy-MM-dd'))
+      .lt('event_date', format(weekEnd, 'yyyy-MM-dd'))
+      .order('event_date', { ascending: true })
+      .order('start_time', { ascending: true });
+
+    if (data) setEvents(data);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -162,9 +182,13 @@ export default function Tasks() {
     }
   };
 
-  // Get tasks for a specific day
+  // Get tasks and events for a specific day
   const getTasksForDay = (day: Date) => {
     return tasks.filter(task => isSameDay(new Date(task.deadline), day));
+  };
+
+  const getEventsForDay = (day: Date) => {
+    return events.filter(event => isSameDay(new Date(event.event_date), day));
   };
 
   return (
@@ -261,7 +285,9 @@ export default function Tasks() {
           <div className="grid grid-cols-7 gap-2">
             {weekDays.map((day, idx) => {
               const dayTasks = getTasksForDay(day);
+              const dayEvents = getEventsForDay(day);
               const isToday = isSameDay(day, new Date());
+              const totalItems = dayTasks.length + dayEvents.length;
               
               return (
                 <div
@@ -279,9 +305,20 @@ export default function Tasks() {
                     </p>
                   </div>
                   <div className="space-y-1">
-                    {dayTasks.slice(0, 3).map((task) => (
+                    {/* Show calendar events first */}
+                    {dayEvents.slice(0, 2).map((event) => (
                       <div
-                        key={task.id}
+                        key={`event-${event.id}`}
+                        className="text-xs p-1 rounded bg-accent/20 text-accent truncate"
+                      >
+                        {event.start_time && `${event.start_time} `}
+                        📅 {event.title}
+                      </div>
+                    ))}
+                    {/* Then show tasks */}
+                    {dayTasks.slice(0, Math.max(1, 3 - dayEvents.length)).map((task) => (
+                      <div
+                        key={`task-${task.id}`}
                         className="flex items-start gap-1 text-xs group cursor-pointer"
                         onClick={() => toggleComplete(task)}
                       >
@@ -303,9 +340,9 @@ export default function Tasks() {
                         </p>
                       </div>
                     ))}
-                    {dayTasks.length > 3 && (
+                    {totalItems > 3 && (
                       <p className="text-xs text-muted-foreground text-center">
-                        +{dayTasks.length - 3} more
+                        +{totalItems - 3} more
                       </p>
                     )}
                   </div>
