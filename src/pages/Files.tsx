@@ -88,16 +88,11 @@ export default function Files() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('study-materials')
-        .getPublicUrl(filePath);
-
-      // Save file metadata to database
+      // Save file path (we'll generate signed URLs when viewing)
       const { error: dbError } = await supabase.from('files').insert({
         user_id: user.id,
         file_name: selectedFile.name,
-        file_url: publicUrl,
+        file_url: filePath, // Store the path, not the URL
         subject: selectedSubject,
         description: fileDescription || null
       });
@@ -238,15 +233,33 @@ export default function Files() {
                            
                            if (isPlaceholder) return null;
                            
+                           const handleFileClick = async () => {
+                             if (isNote) return;
+                             
+                             // Generate signed URL for secure access
+                             const { data, error } = await supabase.storage
+                               .from('study-materials')
+                               .createSignedUrl(file.file_url, 3600); // 1 hour expiry
+                             
+                             if (error) {
+                               toast({ 
+                                 title: 'Error', 
+                                 description: 'Failed to open file', 
+                                 variant: 'destructive' 
+                               });
+                               return;
+                             }
+                             
+                             if (data?.signedUrl) {
+                               window.open(data.signedUrl, '_blank');
+                             }
+                           };
+                           
                            return (
                              <div
                                key={file.id}
                                className="p-2 glass rounded-lg border border-glass-border text-sm hover:border-primary/50 transition-all cursor-pointer"
-                               onClick={() => {
-                                 if (!isNote) {
-                                   window.open(file.file_url, '_blank');
-                                 }
-                               }}
+                               onClick={handleFileClick}
                              >
                                <div className="flex items-start gap-2">
                                  {isNote ? (
