@@ -134,7 +134,10 @@ export default function Dashboard() {
       <div className="grid md:grid-cols-3 gap-4">
         <Card className="glass-strong">
           <CardHeader>
-            <CardTitle>Today's Tasks</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              Today's Tasks
+              <span className="text-sm font-normal text-muted-foreground">({todayTasks.length})</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {todayTasks.length === 0 ? (
@@ -163,7 +166,10 @@ export default function Dashboard() {
 
         <Card className="glass-strong">
           <CardHeader>
-            <CardTitle>Tomorrow's Tasks</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              Tomorrow's Tasks
+              <span className="text-sm font-normal text-muted-foreground">({tomorrowTasks.length})</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {tomorrowTasks.length === 0 ? (
@@ -192,7 +198,10 @@ export default function Dashboard() {
 
         <Card className="glass-strong">
           <CardHeader>
-            <CardTitle>Upcoming Events</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              Upcoming Events
+              <span className="text-sm font-normal text-muted-foreground">({upcomingEvents.length})</span>
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {upcomingEvents.length === 0 ? (
