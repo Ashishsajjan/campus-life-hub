@@ -68,12 +68,23 @@ export default function Chat() {
       let textBuffer = '';
 
       const updateAssistantMessage = (content: string) => {
+        // Strip markdown formatting symbols for clean output
+        const cleanContent = content
+          .replace(/#{1,6}\s/g, '') // Remove headers
+          .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove bold
+          .replace(/\*([^*]+)\*/g, '$1') // Remove italic
+          .replace(/__([^_]+)__/g, '$1') // Remove underline bold
+          .replace(/_([^_]+)_/g, '$1') // Remove underline italic
+          .replace(/`([^`]+)`/g, '$1') // Remove inline code
+          .replace(/^\s*[-*]\s/gm, '') // Remove bullet points
+          .replace(/^\s*\d+\.\s/gm, ''); // Remove numbered lists
+        
         setMessages(prev => {
           const lastMsg = prev[prev.length - 1];
           if (lastMsg?.role === 'assistant') {
-            return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content } : m));
+            return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: cleanContent } : m));
           }
-          return [...prev, { role: 'assistant', content }];
+          return [...prev, { role: 'assistant', content: cleanContent }];
         });
       };
 
