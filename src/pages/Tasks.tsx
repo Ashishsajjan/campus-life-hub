@@ -59,13 +59,6 @@ export default function Tasks() {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
       query = query.gte('deadline', today.toISOString()).lt('deadline', tomorrow.toISOString());
-    } else if (filter === 'week') {
-      const today = new Date();
-      const nextWeek = new Date();
-      nextWeek.setDate(today.getDate() + 7);
-      query = query.gte('deadline', today.toISOString()).lt('deadline', nextWeek.toISOString());
-    } else if (filter === 'overdue') {
-      query = query.lt('deadline', new Date().toISOString()).eq('is_completed', false);
     } else if (filter === 'completed') {
       // Load both completed tasks and completed events
       query = query.eq('is_completed', true);
@@ -423,14 +416,14 @@ export default function Tasks() {
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">
-        {['all', 'today', 'week', 'overdue', 'completed'].map((f) => (
+        {['all', 'today', 'completed'].map((f) => (
           <Button
             key={f}
             onClick={() => setFilter(f)}
             variant={filter === f ? 'default' : 'outline'}
             className="capitalize"
           >
-            {f === 'week' ? 'This Week' : f}
+            {f}
           </Button>
         ))}
       </div>
