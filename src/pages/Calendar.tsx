@@ -29,12 +29,11 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [formData, setFormData] = useState({
     title: '',
-    event_type: 'class',
-    event_date: '',
-    start_time: '',
-    end_time: '',
+    description: '',
+    category: 'Study',
     subject: '',
-    notes: ''
+    deadline: '',
+    priority: 'medium'
   });
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -74,9 +73,11 @@ export default function Calendar() {
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
+    const defaultDeadline = new Date(date);
+    defaultDeadline.setHours(9, 0, 0, 0);
     setFormData({
       ...formData,
-      event_date: format(date, 'yyyy-MM-dd')
+      deadline: format(defaultDeadline, "yyyy-MM-dd'T'HH:mm")
     });
     setIsDialogOpen(true);
   };
@@ -86,26 +87,28 @@ export default function Calendar() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { error } = await supabase.from('events').insert({
+    const deadlineDate = new Date(formData.deadline);
+
+    const { error } = await supabase.from('tasks').insert({
       ...formData,
-      user_id: user.id
+      user_id: user.id,
+      deadline: deadlineDate.toISOString()
     });
 
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Success', description: 'Event created successfully' });
+      toast({ title: 'Success', description: 'Task created successfully' });
       setIsDialogOpen(false);
       setFormData({
         title: '',
-        event_type: 'class',
-        event_date: '',
-        start_time: '',
-        end_time: '',
+        description: '',
+        category: 'Study',
         subject: '',
-        notes: ''
+        deadline: '',
+        priority: 'medium'
       });
-      loadEvents();
+      loadTasks();
     }
   };
 
@@ -148,12 +151,12 @@ export default function Calendar() {
             <DialogTrigger asChild>
               <Button className="gap-2">
                 <Plus className="w-4 h-4" />
-                Add Event
+                Add Task
               </Button>
             </DialogTrigger>
             <DialogContent className="glass-strong max-w-md">
               <DialogHeader>
-                <DialogTitle>Create New Event</DialogTitle>
+                <DialogTitle>Create New Task</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -166,52 +169,39 @@ export default function Calendar() {
                   />
                 </div>
                 <div>
-                  <Label>Event Type</Label>
-                  <Select
-                    value={formData.event_type}
-                    onValueChange={(value) => setFormData({ ...formData, event_type: value })}
-                  >
-                    <SelectTrigger className="bg-background/50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="class">Class</SelectItem>
-                      <SelectItem value="exam">Exam</SelectItem>
-                      <SelectItem value="assignment">Assignment</SelectItem>
-                      <SelectItem value="meeting">Meeting</SelectItem>
-                      <SelectItem value="submission">Submission</SelectItem>
-                      <SelectItem value="personal">Personal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Date</Label>
-                  <Input
-                    type="date"
-                    value={formData.event_date}
-                    onChange={(e) => setFormData({ ...formData, event_date: e.target.value })}
-                    required
+                  <Label>Description</Label>
+                  <Textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     className="bg-background/50"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label>Start Time</Label>
-                    <Input
-                      type="time"
-                      value={formData.start_time}
-                      onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
-                      className="bg-background/50"
-                    />
+                    <Label>Category</Label>
+                    <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                      <SelectTrigger className="bg-background/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Study">Study</SelectItem>
+                        <SelectItem value="Personal">Personal</SelectItem>
+                        <SelectItem value="Admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
-                    <Label>End Time</Label>
-                    <Input
-                      type="time"
-                      value={formData.end_time}
-                      onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
-                      className="bg-background/50"
-                    />
+                    <Label>Priority</Label>
+                    <Select value={formData.priority} onValueChange={(value) => setFormData({ ...formData, priority: value })}>
+                      <SelectTrigger className="bg-background/50">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="low">Low</SelectItem>
+                        <SelectItem value="medium">Medium</SelectItem>
+                        <SelectItem value="high">High</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div>
@@ -224,14 +214,16 @@ export default function Calendar() {
                   />
                 </div>
                 <div>
-                  <Label>Notes</Label>
-                  <Textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  <Label>Deadline (Date & Time)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={formData.deadline}
+                    onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
+                    required
                     className="bg-background/50"
                   />
                 </div>
-                <Button type="submit" className="w-full">Create Event</Button>
+                <Button type="submit" className="w-full">Create Task</Button>
               </form>
             </DialogContent>
           </Dialog>

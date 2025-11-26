@@ -20,7 +20,6 @@ import { Checkbox } from '@/components/ui/checkbox';
  */
 export default function Tasks() {
   const [tasks, setTasks] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
   const [filter, setFilter] = useState('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDayDialogOpen, setIsDayDialogOpen] = useState(false);
@@ -42,7 +41,6 @@ export default function Tasks() {
 
   useEffect(() => {
     loadTasks();
-    loadEvents();
   }, [filter]);
 
   const loadTasks = async () => {
@@ -78,23 +76,6 @@ export default function Tasks() {
     if (data) setTasks(data);
   };
 
-  const loadEvents = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Load events for current week
-    const weekEnd = addDays(weekStart, 7);
-    const { data } = await supabase
-      .from('events')
-      .select('*')
-      .eq('user_id', user.id)
-      .gte('event_date', format(weekStart, 'yyyy-MM-dd'))
-      .lt('event_date', format(weekEnd, 'yyyy-MM-dd'))
-      .order('event_date', { ascending: true })
-      .order('start_time', { ascending: true });
-
-    if (data) setEvents(data);
-  };
 
   const openAddTaskDialog = (date: Date) => {
     setSelectedDate(date);
@@ -132,28 +113,11 @@ export default function Tasks() {
       return;
     }
 
-    // Create linked calendar event for this task
-    const { error: eventError } = await supabase.from('events').insert({
-      user_id: user.id,
-      title: formData.title,
-      event_type: 'assignment',
-      event_date: format(deadlineDate, 'yyyy-MM-dd'),
-      start_time: format(deadlineDate, 'HH:mm'),
-      end_time: format(deadlineDate, 'HH:mm'),
-      subject: formData.subject,
-      notes: `Task deadline: ${formData.description}`
-    });
-
-    if (eventError) {
-      console.log('Could not create calendar event:', eventError);
-    }
-
-    toast({ title: 'Success', description: 'Task created and added to calendar' });
+    toast({ title: 'Success', description: 'Task created successfully' });
     setIsDialogOpen(false);
     setSelectedDate(null);
     setFormData({ title: '', description: '', category: 'Study', subject: '', deadline: '', priority: 'medium' });
     loadTasks();
-    loadEvents();
   };
 
   const toggleComplete = async (task: any) => {
@@ -212,17 +176,6 @@ export default function Tasks() {
       .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
   };
 
-  const getEventsForDay = (day: Date) => {
-    return events
-      .filter(event => isSameDay(new Date(event.event_date), day))
-      .sort((a, b) => {
-        // Sort by start_time if available
-        if (a.start_time && b.start_time) {
-          return a.start_time.localeCompare(b.start_time);
-        }
-        return 0;
-      });
-  };
 
   return (
     <div className="p-6 space-y-6">
@@ -307,7 +260,6 @@ export default function Tasks() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
         {weekDays.map((day, idx) => {
           const dayTasks = getTasksForDay(day);
-          const dayEvents = getEventsForDay(day);
           const isToday = isSameDay(day, new Date());
           const dayName = format(day, 'EEEE');
           const shortDay = format(day, 'EEE');
@@ -343,15 +295,14 @@ export default function Tasks() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-2 min-h-[200px]">
-                {/* Task and Event Count */}
+                {/* Task Count */}
                 <div className="text-center py-4">
                   <p className="text-sm text-muted-foreground">
-                    {dayTasks.length + dayEvents.length === 0 ? (
+                    {dayTasks.length === 0 ? (
                       <>No tasks</>
                     ) : (
                       <>
                         {dayTasks.length} task{dayTasks.length !== 1 ? 's' : ''}
-                        {dayEvents.length > 0 && ` • ${dayEvents.length} event${dayEvents.length !== 1 ? 's' : ''}`}
                       </>
                     )}
                   </p>
@@ -386,32 +337,6 @@ export default function Tasks() {
                 <Plus className="w-4 h-4 mr-2" />
                 Add Task for This Day
               </Button>
-
-              {/* Events Section */}
-              {getEventsForDay(selectedDayDate).length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-sm text-muted-foreground">Calendar Events</h3>
-                  {getEventsForDay(selectedDayDate).map((event) => (
-                    <div
-                      key={`event-${event.id}`}
-                      className="p-3 rounded-lg bg-accent/20 border border-accent/30"
-                    >
-                      <div className="flex items-start gap-3">
-                        <span className="text-lg">📅</span>
-                        <div className="flex-1">
-                          <p className="font-medium">{event.title}</p>
-                          {event.start_time && (
-                            <p className="text-sm text-muted-foreground">{event.start_time}</p>
-                          )}
-                          {event.subject && (
-                            <p className="text-sm text-muted-foreground">{event.subject}</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
 
               {/* Tasks Section */}
               {getTasksForDay(selectedDayDate).length > 0 && (
@@ -456,8 +381,7 @@ export default function Tasks() {
               )}
 
               {/* Empty State */}
-              {getTasksForDay(selectedDayDate).length === 0 && 
-               getEventsForDay(selectedDayDate).length === 0 && (
+              {getTasksForDay(selectedDayDate).length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No tasks or events for this day</p>
                   <p className="text-sm mt-2">Click "Add Task" to create one</p>
