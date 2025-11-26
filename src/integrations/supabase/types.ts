@@ -43,11 +43,13 @@ export type Database = {
       }
       events: {
         Row: {
+          completed_at: string | null
           created_at: string
           end_time: string | null
           event_date: string
           event_type: string
           id: string
+          is_completed: boolean | null
           notes: string | null
           start_time: string | null
           subject: string | null
@@ -56,11 +58,13 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          completed_at?: string | null
           created_at?: string
           end_time?: string | null
           event_date: string
           event_type: string
           id?: string
+          is_completed?: boolean | null
           notes?: string | null
           start_time?: string | null
           subject?: string | null
@@ -69,11 +73,13 @@ export type Database = {
           user_id: string
         }
         Update: {
+          completed_at?: string | null
           created_at?: string
           end_time?: string | null
           event_date?: string
           event_type?: string
           id?: string
+          is_completed?: boolean | null
           notes?: string | null
           start_time?: string | null
           subject?: string | null
