@@ -64,6 +64,8 @@ Return your analysis as a JSON object with this structure:
       "title": "Task title",
       "description": "Task description",
       "deadline": "ISO date string (YYYY-MM-DDTHH:mm:ss.sssZ) or null if no specific deadline",
+      "reminderNeeded": true/false - whether this task needs a reminder,
+      "reminderHoursBefore": number of hours before deadline to send reminder (default 24 for important tasks),
       "priority": "high" | "medium" | "low",
       "category": "Study" | "Personal" | "Admin",
       "subject": "Subject/Course name if applicable"
@@ -75,6 +77,11 @@ Return your analysis as a JSON object with this structure:
 Guidelines:
 - Extract actionable tasks with clear deadlines
 - Set priority based on urgency indicated in the email
+- Set reminderNeeded to true for important tasks with deadlines (exams, submissions, meetings)
+- Set reminderNeeded to false for general information or optional tasks
+- For high priority: set reminder 24-48 hours before deadline
+- For medium priority: set reminder 12-24 hours before deadline
+- For low priority: set reminder 6-12 hours before deadline
 - Use "high" priority for urgent items with close deadlines
 - Include subject/course names when mentioned
 - If no deadline is specified, use null
@@ -102,11 +109,13 @@ Guidelines:
                         title: { type: "string" },
                         description: { type: "string" },
                         deadline: { type: ["string", "null"] },
+                        reminderNeeded: { type: "boolean" },
+                        reminderHoursBefore: { type: "number" },
                         priority: { type: "string", enum: ["low", "medium", "high"] },
                         category: { type: "string", enum: ["Study", "Personal", "Admin"] },
                         subject: { type: "string" }
                       },
-                      required: ["title", "description", "priority", "category"]
+                      required: ["title", "description", "priority", "category", "reminderNeeded"]
                     }
                   },
                   summary: { type: "string" }
@@ -165,6 +174,19 @@ Guidelines:
         taskDeadline = defaultDate.toISOString();
       }
 
+      // Calculate reminder time if needed
+      let reminderTime = null;
+      if (task.reminderNeeded) {
+        const deadlineDate = new Date(taskDeadline);
+        const hoursBefore = task.reminderHoursBefore || 24; // Default to 24 hours before
+        const reminderDate = new Date(deadlineDate.getTime() - (hoursBefore * 60 * 60 * 1000));
+        
+        // Only set reminder if it's in the future
+        if (reminderDate > new Date()) {
+          reminderTime = reminderDate.toISOString();
+        }
+      }
+
       // Insert task
       const { data: taskData, error: taskError } = await supabase
         .from('tasks')
@@ -175,6 +197,7 @@ Guidelines:
           category: task.category,
           subject: task.subject || null,
           deadline: taskDeadline,
+          reminder_time: reminderTime,
           priority: task.priority,
           is_completed: false
         })
