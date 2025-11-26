@@ -32,11 +32,12 @@ export default function Dashboard() {
       setPomodoroToday(settings.pomodoro_sessions_today || 0);
     }
 
-    // Load upcoming events from calendar
+    // Load upcoming events from calendar (only non-completed)
     const { data: events } = await supabase
       .from('events')
       .select('*')
       .eq('user_id', user.id)
+      .eq('is_completed', false)
       .gte('event_date', format(new Date(), 'yyyy-MM-dd'))
       .order('event_date', { ascending: true })
       .order('start_time', { ascending: true })

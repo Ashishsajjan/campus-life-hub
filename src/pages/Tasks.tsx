@@ -67,7 +67,36 @@ export default function Tasks() {
     } else if (filter === 'overdue') {
       query = query.lt('deadline', new Date().toISOString()).eq('is_completed', false);
     } else if (filter === 'completed') {
+      // Load both completed tasks and completed events
       query = query.eq('is_completed', true);
+      const { data: taskData } = await query;
+      
+      // Also fetch completed events from calendar
+      const { data: eventData } = await supabase
+        .from('events')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_completed', true)
+        .order('event_date', { ascending: false });
+      
+      // Combine tasks and events, treating events as tasks
+      const combinedData = [
+        ...(taskData || []),
+        ...(eventData || []).map(event => ({
+          ...event,
+          title: event.title,
+          description: event.notes || '',
+          category: event.event_type,
+          subject: event.subject || '',
+          deadline: new Date(event.event_date + (event.start_time ? 'T' + event.start_time : 'T00:00:00')).toISOString(),
+          priority: 'medium',
+          is_completed: event.is_completed,
+          completed_at: event.completed_at
+        }))
+      ].sort((a, b) => new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime());
+      
+      setTasks(combinedData);
+      return;
     } else {
       query = query.eq('is_completed', false);
     }
