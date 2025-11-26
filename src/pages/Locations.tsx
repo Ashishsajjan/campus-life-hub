@@ -58,26 +58,22 @@ export default function Locations() {
               <p className="text-sm text-muted-foreground">Find dining and accommodation options</p>
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full h-14 text-base hover-scale"
-                asChild
+              <a 
+                href="https://www.google.com/maps/search/restaurants+near+me" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-14 px-4 py-2 text-base font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors hover-scale"
               >
-                <a href="https://www.google.com/maps/search/restaurants+near+me" target="_blank" rel="noopener noreferrer">
-                  🍕 Find Restaurants
-                </a>
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full h-14 text-base hover-scale"
-                asChild
+                🍕 Find Restaurants
+              </a>
+              <a 
+                href="https://www.google.com/maps/search/hotels+near+me" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-14 px-4 py-2 text-base font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors hover-scale"
               >
-                <a href="https://www.google.com/maps/search/hotels+near+me" target="_blank" rel="noopener noreferrer">
-                  🏨 Find Hotels
-                </a>
-              </Button>
+                🏨 Find Hotels
+              </a>
             </div>
           </section>
 
@@ -88,26 +84,22 @@ export default function Locations() {
               <p className="text-sm text-muted-foreground">Find office supplies and printing services</p>
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full h-14 text-base hover-scale"
-                asChild
+              <a 
+                href="https://www.google.com/maps/search/stationery+shops+near+me" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-14 px-4 py-2 text-base font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors hover-scale"
               >
-                <a href="https://www.google.com/maps/search/stationery+shops+near+me" target="_blank" rel="noopener noreferrer">
-                  📚 Find Stationery Shops
-                </a>
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full h-14 text-base hover-scale"
-                asChild
+                📚 Find Stationery Shops
+              </a>
+              <a 
+                href="https://www.google.com/maps/search/printing+xerox+shops+near+me" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-14 px-4 py-2 text-base font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors hover-scale"
               >
-                <a href="https://www.google.com/maps/search/printing+xerox+shops+near+me" target="_blank" rel="noopener noreferrer">
-                  🖨 Find Printing Shops
-                </a>
-              </Button>
+                🖨 Find Printing Shops
+              </a>
             </div>
           </section>
 
@@ -118,26 +110,22 @@ export default function Locations() {
               <p className="text-sm text-muted-foreground">Find housing and rental options</p>
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full h-14 text-base hover-scale"
-                asChild
+              <a 
+                href="https://www.google.com/maps/search/PG+hostel+accommodation+near+me" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-14 px-4 py-2 text-base font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors hover-scale"
               >
-                <a href="https://www.google.com/maps/search/PG+hostel+accommodation+near+me" target="_blank" rel="noopener noreferrer">
-                  🏠 Find PG/Hostels
-                </a>
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full h-14 text-base hover-scale"
-                asChild
+                🏠 Find PG/Hostels
+              </a>
+              <a 
+                href="https://www.google.com/maps/search/PG+hostel+near+college+university" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-14 px-4 py-2 text-base font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors hover-scale"
               >
-                <a href="https://www.google.com/maps/search/PG+hostel+near+college+university" target="_blank" rel="noopener noreferrer">
-                  🏫 Near Colleges
-                </a>
-              </Button>
+                🏫 Near Colleges
+              </a>
             </div>
           </section>
 
@@ -148,36 +136,30 @@ export default function Locations() {
               <p className="text-sm text-muted-foreground">Find travel and transport options</p>
             </div>
             <div className="grid sm:grid-cols-3 gap-3">
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full h-14 text-base hover-scale"
-                asChild
+              <a 
+                href="https://www.google.com/maps/search/tourist+places+attractions+near+me" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-14 px-4 py-2 text-base font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors hover-scale"
               >
-                <a href="https://www.google.com/maps/search/tourist+places+attractions+near+me" target="_blank" rel="noopener noreferrer">
-                  🗺 Tourist Places
-                </a>
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full h-14 text-base hover-scale"
-                asChild
+                🗺 Tourist Places
+              </a>
+              <a 
+                href="https://www.google.com/maps/search/metro+stations+near+me" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-14 px-4 py-2 text-base font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors hover-scale"
               >
-                <a href="https://www.google.com/maps/search/metro+stations+near+me" target="_blank" rel="noopener noreferrer">
-                  🚇 Metro Stations
-                </a>
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="w-full h-14 text-base hover-scale"
-                asChild
+                🚇 Metro Stations
+              </a>
+              <a 
+                href="https://www.google.com/maps/search/bus+stops+stations+near+me" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center h-14 px-4 py-2 text-base font-medium rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors hover-scale"
               >
-                <a href="https://www.google.com/maps/search/bus+stops+stations+near+me" target="_blank" rel="noopener noreferrer">
-                  🚌 Bus Stops
-                </a>
-              </Button>
+                🚌 Bus Stops
+              </a>
             </div>
           </section>
         </div>
