@@ -197,13 +197,23 @@ export default function Tasks() {
     }
   };
 
-  // Get tasks and events for a specific day
+  // Get tasks and events for a specific day in sequential order
   const getTasksForDay = (day: Date) => {
-    return tasks.filter(task => isSameDay(new Date(task.deadline), day));
+    return tasks
+      .filter(task => isSameDay(new Date(task.deadline), day))
+      .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
   };
 
   const getEventsForDay = (day: Date) => {
-    return events.filter(event => isSameDay(new Date(event.event_date), day));
+    return events
+      .filter(event => isSameDay(new Date(event.event_date), day))
+      .sort((a, b) => {
+        // Sort by start_time if available
+        if (a.start_time && b.start_time) {
+          return a.start_time.localeCompare(b.start_time);
+        }
+        return 0;
+      });
   };
 
   return (
