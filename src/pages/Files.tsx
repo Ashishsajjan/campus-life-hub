@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { BookOpen, Plus, FileText, Upload, FolderOpen } from 'lucide-react';
+import { BookOpen, Plus, FileText, Upload, FolderOpen, Trash2, X } from 'lucide-react';
 
 /**
  * Files & Subject Notes
@@ -115,6 +115,79 @@ export default function Files() {
     }
   };
 
+  const handleDeleteFile = async (file: any) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      // If it's a real file (not a note or placeholder), delete from storage
+      if (!file.file_url.startsWith('note:') && !file.file_url.startsWith('placeholder:')) {
+        const { error: storageError } = await supabase.storage
+          .from('study-materials')
+          .remove([file.file_url]);
+
+        if (storageError) throw storageError;
+      }
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('files')
+        .delete()
+        .eq('id', file.id);
+
+      if (dbError) throw dbError;
+
+      toast({ title: 'Success', description: 'File deleted successfully' });
+      loadData();
+    } catch (error: any) {
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to delete file', 
+        variant: 'destructive' 
+      });
+    }
+  };
+
+  const handleDeleteSubject = async (subject: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const subjectFiles = getFilesForSubject(subject);
+
+    try {
+      // Delete all files from storage (excluding notes and placeholders)
+      const filesToDelete = subjectFiles
+        .filter(f => !f.file_url.startsWith('note:') && !f.file_url.startsWith('placeholder:'))
+        .map(f => f.file_url);
+
+      if (filesToDelete.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from('study-materials')
+          .remove(filesToDelete);
+
+        if (storageError) throw storageError;
+      }
+
+      // Delete all file entries from database
+      const { error: dbError } = await supabase
+        .from('files')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('subject', subject);
+
+      if (dbError) throw dbError;
+
+      toast({ title: 'Success', description: `Subject "${subject}" deleted` });
+      loadData();
+    } catch (error: any) {
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to delete subject', 
+        variant: 'destructive' 
+      });
+    }
+  };
+
   const handleAddNote = async () => {
     if (!selectedSubject || !noteText.trim()) return;
 
@@ -214,10 +287,25 @@ export default function Files() {
                 className="glass-strong hover:border-primary/50 transition-all"
               >
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BookOpen className="w-5 h-5 text-primary" />
-                    {subject}
-                  </CardTitle>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-primary" />
+                      {subject}
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Delete "${subject}" and all its files?`)) {
+                          handleDeleteSubject(subject);
+                        }
+                      }}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {/* Files/Notes List */}
@@ -258,27 +346,44 @@ export default function Files() {
                            return (
                              <div
                                key={file.id}
-                               className="p-2 glass rounded-lg border border-glass-border text-sm hover:border-primary/50 transition-all cursor-pointer"
-                               onClick={handleFileClick}
+                               className="p-2 glass rounded-lg border border-glass-border text-sm hover:border-primary/50 transition-all group"
                              >
                                <div className="flex items-start gap-2">
-                                 {isNote ? (
-                                   <FileText className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                                 ) : (
-                                   <Upload className="w-4 h-4 text-secondary flex-shrink-0 mt-0.5" />
-                                 )}
-                                 <div className="flex-1 min-w-0">
-                                   <p className="font-medium truncate">{file.file_name}</p>
+                                 <div 
+                                   className="flex-1 flex items-start gap-2 cursor-pointer"
+                                   onClick={handleFileClick}
+                                 >
                                    {isNote ? (
-                                     <p className="text-xs text-muted-foreground line-clamp-2">
-                                       {file.file_url.substring(5)}
-                                     </p>
+                                     <FileText className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                                    ) : (
-                                     file.description && (
-                                       <p className="text-xs text-muted-foreground">{file.description}</p>
-                                     )
+                                     <Upload className="w-4 h-4 text-secondary flex-shrink-0 mt-0.5" />
                                    )}
+                                   <div className="flex-1 min-w-0">
+                                     <p className="font-medium truncate">{file.file_name}</p>
+                                     {isNote ? (
+                                       <p className="text-xs text-muted-foreground line-clamp-2">
+                                         {file.file_url.substring(5)}
+                                       </p>
+                                     ) : (
+                                       file.description && (
+                                         <p className="text-xs text-muted-foreground">{file.description}</p>
+                                       )
+                                     )}
+                                   </div>
                                  </div>
+                                 <Button
+                                   variant="ghost"
+                                   size="icon"
+                                   onClick={(e) => {
+                                     e.stopPropagation();
+                                     if (confirm('Delete this file?')) {
+                                       handleDeleteFile(file);
+                                     }
+                                   }}
+                                   className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                 >
+                                   <X className="w-3 h-3" />
+                                 </Button>
                                </div>
                              </div>
                            );
