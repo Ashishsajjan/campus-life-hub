@@ -89,13 +89,15 @@ serve(async (req) => {
       console.log('Token refreshed successfully');
     }
 
-    // Fetch recent messages from Gmail API (last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const dateFilter = sevenDaysAgo.toISOString().split('T')[0].replace(/-/g, '/');
+    // Fetch recent messages from Gmail API (last 3 days only)
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const dateFilter = threeDaysAgo.toISOString().split('T')[0].replace(/-/g, '/');
+    
+    console.log(`Fetching emails after: ${dateFilter}`);
     
     const messagesResponse = await fetch(
-      `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=10&labelIds=INBOX&q=after:${dateFilter}`,
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=20&labelIds=INBOX&q=after:${dateFilter} in:inbox`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
