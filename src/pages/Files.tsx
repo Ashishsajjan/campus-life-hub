@@ -25,6 +25,9 @@ export default function Files() {
   const [isAddSubjectDialogOpen, setIsAddSubjectDialogOpen] = useState(false);
   const [newSubjectName, setNewSubjectName] = useState('');
   const [noteText, setNoteText] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileDescription, setFileDescription] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -60,11 +63,61 @@ export default function Files() {
 
   const handleFileUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    toast({
-      title: 'Info',
-      description: 'File upload coming soon - storage integration needed'
-    });
-    // In production: upload to Supabase Storage, then save metadata to files table
+    
+    if (!selectedFile || !selectedSubject) {
+      toast({ title: 'Error', description: 'Please select a file', variant: 'destructive' });
+      return;
+    }
+
+    setIsUploading(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setIsUploading(false);
+      return;
+    }
+
+    try {
+      // Upload file to storage with user folder structure
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('study-materials')
+        .upload(filePath, selectedFile);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('study-materials')
+        .getPublicUrl(filePath);
+
+      // Save file metadata to database
+      const { error: dbError } = await supabase.from('files').insert({
+        user_id: user.id,
+        file_name: selectedFile.name,
+        file_url: publicUrl,
+        subject: selectedSubject,
+        description: fileDescription || null
+      });
+
+      if (dbError) throw dbError;
+
+      toast({ title: 'Success', description: 'File uploaded successfully' });
+      setIsDialogOpen(false);
+      setSelectedFile(null);
+      setFileDescription('');
+      loadData();
+    } catch (error: any) {
+      toast({ 
+        title: 'Error', 
+        description: error.message || 'Failed to upload file', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleAddNote = async () => {
@@ -178,32 +231,45 @@ export default function Files() {
                       <p className="text-sm text-muted-foreground">No files or notes yet</p>
                     ) : (
                       subjectFiles
-                        .filter(file => file.file_name !== '_subject_placeholder') // Hide placeholder entries
-                        .map((file) => {
-                          const isNote = file.file_url.startsWith('note:');
-                          return (
-                            <div
-                              key={file.id}
-                              className="p-2 glass rounded-lg border border-glass-border text-sm"
-                            >
-                              <div className="flex items-start gap-2">
-                                {isNote ? (
-                                  <FileText className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                                ) : (
-                                  <Upload className="w-4 h-4 text-secondary flex-shrink-0 mt-0.5" />
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-medium truncate">{file.file_name}</p>
-                                  {isNote && (
-                                    <p className="text-xs text-muted-foreground line-clamp-2">
-                                      {file.file_url.substring(5)}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })
+                         .filter(file => file.file_name !== '_subject_placeholder') // Hide placeholder entries
+                         .map((file) => {
+                           const isNote = file.file_url.startsWith('note:');
+                           const isPlaceholder = file.file_url.startsWith('placeholder:');
+                           
+                           if (isPlaceholder) return null;
+                           
+                           return (
+                             <div
+                               key={file.id}
+                               className="p-2 glass rounded-lg border border-glass-border text-sm hover:border-primary/50 transition-all cursor-pointer"
+                               onClick={() => {
+                                 if (!isNote) {
+                                   window.open(file.file_url, '_blank');
+                                 }
+                               }}
+                             >
+                               <div className="flex items-start gap-2">
+                                 {isNote ? (
+                                   <FileText className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                                 ) : (
+                                   <Upload className="w-4 h-4 text-secondary flex-shrink-0 mt-0.5" />
+                                 )}
+                                 <div className="flex-1 min-w-0">
+                                   <p className="font-medium truncate">{file.file_name}</p>
+                                   {isNote ? (
+                                     <p className="text-xs text-muted-foreground line-clamp-2">
+                                       {file.file_url.substring(5)}
+                                     </p>
+                                   ) : (
+                                     file.description && (
+                                       <p className="text-xs text-muted-foreground">{file.description}</p>
+                                     )
+                                   )}
+                                 </div>
+                               </div>
+                             </div>
+                           );
+                         })
                     )}
                   </div>
 
@@ -252,18 +318,27 @@ export default function Files() {
               <Label>File</Label>
               <Input
                 type="file"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                 className="bg-background/50"
+                required
               />
+              {selectedFile && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                </p>
+              )}
             </div>
             <div>
               <Label>Description (optional)</Label>
               <Input
                 placeholder="What is this file about?"
+                value={fileDescription}
+                onChange={(e) => setFileDescription(e.target.value)}
                 className="bg-background/50"
               />
             </div>
-            <Button type="submit" className="w-full">
-              Upload
+            <Button type="submit" className="w-full" disabled={isUploading}>
+              {isUploading ? 'Uploading...' : 'Upload'}
             </Button>
           </form>
         </DialogContent>
