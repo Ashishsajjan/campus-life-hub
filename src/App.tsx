@@ -8,13 +8,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { Auth } from "@/components/Auth";
 import { Sidebar } from "@/components/Sidebar";
 import { TopBar } from "@/components/TopBar";
+import { FloatingChatBubble } from "@/components/FloatingChatBubble";
 import Dashboard from "./pages/Dashboard";
 import Tasks from "./pages/Tasks";
 import Pomodoro from "./pages/Pomodoro";
 import Calendar from "./pages/Calendar";
 import Locations from "./pages/Locations";
 import AIMail from "./pages/AIMail";
-import Chat from "./pages/Chat";
 import Bookmarks from "./pages/Bookmarks";
 import Files from "./pages/Files";
 import NotFound from "./pages/NotFound";
@@ -76,13 +76,14 @@ const App = () => {
                   <Route path="/calendar" element={<Calendar />} />
                   <Route path="/locations" element={<Locations />} />
                   <Route path="/ai-mail" element={<AIMail />} />
-                  <Route path="/chat" element={<Chat />} />
                   <Route path="/bookmarks" element={<Bookmarks />} />
                   <Route path="/files" element={<Files />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
             </div>
+            {/* Floating AI Chat - available on all pages */}
+            <FloatingChatBubble />
           </div>
         </BrowserRouter>
       </TooltipProvider>

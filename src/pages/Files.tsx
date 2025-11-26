@@ -1,14 +1,251 @@
-import { Card, CardContent } from '@/components/ui/card';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
+import { BookOpen, Plus, FileText, Upload, FolderOpen } from 'lucide-react';
 
+/**
+ * Files & Subject Notes
+ * - Organize study materials by subject
+ * - Each subject gets a box/card
+ * - Upload files and add text notes per subject
+ * - Linked from Calendar for easy access
+ */
 export default function Files() {
+  const [subjects, setSubjects] = useState<string[]>([]);
+  const [files, setFiles] = useState<any[]>([]);
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const { toast } = useToast();
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Load all files
+    const { data: filesData } = await supabase
+      .from('files')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (filesData) {
+      setFiles(filesData);
+      
+      // Extract unique subjects
+      const uniqueSubjects = Array.from(
+        new Set(
+          filesData
+            .map(f => f.subject)
+            .filter(s => s && s.trim() !== '')
+        )
+      ) as string[];
+      
+      setSubjects(uniqueSubjects);
+    }
+  };
+
+  const handleFileUpload = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    toast({
+      title: 'Info',
+      description: 'File upload coming soon - storage integration needed'
+    });
+    // In production: upload to Supabase Storage, then save metadata to files table
+  };
+
+  const handleAddNote = async () => {
+    if (!selectedSubject || !noteText.trim()) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Save note as a file entry with file_url as 'note:' prefix
+    const { error } = await supabase.from('files').insert({
+      user_id: user.id,
+      file_name: `Note - ${new Date().toLocaleDateString()}`,
+      file_url: `note:${noteText}`,
+      subject: selectedSubject,
+      description: 'Text note'
+    });
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: 'Note added' });
+      setIsNoteDialogOpen(false);
+      setNoteText('');
+      loadData();
+    }
+  };
+
+  const getFilesForSubject = (subject: string) => {
+    return files.filter(f => f.subject === subject);
+  };
+
   return (
-    <div className="p-6">
-      <h1 className="text-3xl font-bold mb-6">Files & Study Material</h1>
-      <Card className="glass-strong">
-        <CardContent className="pt-6 text-center text-muted-foreground">
-          File management coming soon - upload and organize study materials
-        </CardContent>
-      </Card>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Subject Notes & Files</h1>
+      </div>
+
+      <p className="text-muted-foreground">
+        Organize your study materials by subject. Files and notes are linked to your calendar events.
+      </p>
+
+      {/* Subject Boxes Grid */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {subjects.length === 0 ? (
+          <Card className="glass-strong md:col-span-2 lg:col-span-3">
+            <CardContent className="pt-6 text-center text-muted-foreground">
+              <FolderOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No subjects yet. Create events or tasks with subjects to organize your materials.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          subjects.map((subject) => {
+            const subjectFiles = getFilesForSubject(subject);
+            
+            return (
+              <Card
+                key={subject}
+                className="glass-strong hover:border-primary/50 transition-all"
+              >
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                    {subject}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Files/Notes List */}
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                    {subjectFiles.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No files or notes yet</p>
+                    ) : (
+                      subjectFiles.map((file) => {
+                        const isNote = file.file_url.startsWith('note:');
+                        return (
+                          <div
+                            key={file.id}
+                            className="p-2 glass rounded-lg border border-glass-border text-sm"
+                          >
+                            <div className="flex items-start gap-2">
+                              {isNote ? (
+                                <FileText className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <Upload className="w-4 h-4 text-secondary flex-shrink-0 mt-0.5" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{file.file_name}</p>
+                                {isNote && (
+                                  <p className="text-xs text-muted-foreground line-clamp-2">
+                                    {file.file_url.substring(5)}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2 border-t border-glass-border">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setSelectedSubject(subject);
+                        setIsDialogOpen(true);
+                      }}
+                    >
+                      <Upload className="w-3 h-3 mr-1" />
+                      Upload
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => {
+                        setSelectedSubject(subject);
+                        setIsNoteDialogOpen(true);
+                      }}
+                    >
+                      <Plus className="w-3 h-3 mr-1" />
+                      Note
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+
+      {/* Upload File Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="glass-strong max-w-md">
+          <DialogHeader>
+            <DialogTitle>Upload File for {selectedSubject}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleFileUpload} className="space-y-4">
+            <div>
+              <Label>File</Label>
+              <Input
+                type="file"
+                className="bg-background/50"
+              />
+            </div>
+            <div>
+              <Label>Description (optional)</Label>
+              <Input
+                placeholder="What is this file about?"
+                className="bg-background/50"
+              />
+            </div>
+            <Button type="submit" className="w-full">
+              Upload
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Note Dialog */}
+      <Dialog open={isNoteDialogOpen} onOpenChange={setIsNoteDialogOpen}>
+        <DialogContent className="glass-strong max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Note for {selectedSubject}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Note</Label>
+              <Textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Write your note here..."
+                className="min-h-[150px] bg-background/50"
+              />
+            </div>
+            <Button onClick={handleAddNote} className="w-full">
+              Save Note
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
