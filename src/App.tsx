@@ -17,6 +17,7 @@ import Locations from "./pages/Locations";
 import AIMail from "./pages/AIMail";
 import Bookmarks from "./pages/Bookmarks";
 import Files from "./pages/Files";
+import MobileAccess from "./pages/MobileAccess";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -75,10 +76,11 @@ const App = () => {
                   <Route path="/pomodoro" element={<Pomodoro />} />
                   <Route path="/calendar" element={<Calendar />} />
                   <Route path="/locations" element={<Locations />} />
-                  <Route path="/ai-mail" element={<AIMail />} />
-                  <Route path="/bookmarks" element={<Bookmarks />} />
-                  <Route path="/files" element={<Files />} />
-                  <Route path="*" element={<NotFound />} />
+                <Route path="/ai-mail" element={<AIMail />} />
+                <Route path="/bookmarks" element={<Bookmarks />} />
+                <Route path="/files" element={<Files />} />
+                <Route path="/mobile-access" element={<MobileAccess />} />
+                <Route path="*" element={<NotFound />} />
                 </Routes>
               </main>
             </div>
