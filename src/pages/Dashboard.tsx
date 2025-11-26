@@ -40,22 +40,55 @@ export default function Dashboard() {
       .eq('is_completed', false)
       .gte('event_date', format(new Date(), 'yyyy-MM-dd'))
       .order('event_date', { ascending: true })
-      .order('start_time', { ascending: true })
-      .limit(5);
+      .order('start_time', { ascending: true });
 
-    if (events) setUpcomingEvents(events);
+    // Load upcoming tasks (only non-completed)
+    const { data: tasks } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_completed', false)
+      .gte('deadline', new Date().toISOString())
+      .order('deadline', { ascending: true });
+
+    // Combine events and tasks, convert tasks to event format
+    const combinedItems = [
+      ...(events || []).map(event => ({
+        ...event,
+        type: 'event',
+        display_date: event.event_date,
+        display_time: event.start_time
+      })),
+      ...(tasks || []).map(task => ({
+        id: task.id,
+        title: task.title,
+        subject: task.subject || task.category,
+        event_type: task.category.toLowerCase(),
+        is_completed: task.is_completed,
+        type: 'task',
+        display_date: format(new Date(task.deadline), 'yyyy-MM-dd'),
+        display_time: format(new Date(task.deadline), 'HH:mm')
+      }))
+    ].sort((a, b) => {
+      const dateA = new Date(a.display_date + 'T' + (a.display_time || '00:00:00'));
+      const dateB = new Date(b.display_date + 'T' + (b.display_time || '00:00:00'));
+      return dateA.getTime() - dateB.getTime();
+    }).slice(0, 5);
+
+    setUpcomingEvents(combinedItems);
   };
 
-  const toggleEventComplete = async (event: any) => {
-    const newCompleted = !event.is_completed;
+  const toggleEventComplete = async (item: any) => {
+    const newCompleted = !item.is_completed;
+    const tableName = item.type === 'event' ? 'events' : 'tasks';
     
     const { error } = await supabase
-      .from('events')
+      .from(tableName)
       .update({ 
         is_completed: newCompleted,
         completed_at: newCompleted ? new Date().toISOString() : null
       })
-      .eq('id', event.id);
+      .eq('id', item.id);
 
     if (!error) {
       loadDashboardData();
@@ -114,27 +147,27 @@ export default function Dashboard() {
           {upcomingEvents.length === 0 ? (
             <p className="text-muted-foreground">No upcoming events</p>
           ) : (
-            upcomingEvents.map((event) => (
-              <div key={event.id} className="flex items-center gap-3 p-3 glass rounded-xl">
+            upcomingEvents.map((item) => (
+              <div key={`${item.type}-${item.id}`} className="flex items-center gap-3 p-3 glass rounded-xl">
                 <Checkbox
-                  checked={event.is_completed}
-                  onCheckedChange={() => toggleEventComplete(event)}
+                  checked={item.is_completed}
+                  onCheckedChange={() => toggleEventComplete(item)}
                 />
                 <div className="flex-1">
-                  <p className={`font-medium ${event.is_completed ? 'line-through text-muted-foreground' : ''}`}>
-                    {event.title}
+                  <p className={`font-medium ${item.is_completed ? 'line-through text-muted-foreground' : ''}`}>
+                    {item.title}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    {event.subject} • {format(new Date(event.event_date), 'MMM d')}
-                    {event.start_time && ` • ${event.start_time}`}
+                    {item.subject} • {format(new Date(item.display_date), 'MMM d')}
+                    {item.display_time && ` • ${item.display_time}`}
                   </p>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  event.event_type === 'exam' ? 'bg-destructive/20 text-destructive' :
-                  event.event_type === 'class' ? 'bg-secondary/20 text-secondary' :
+                  item.event_type === 'exam' || item.event_type === 'study' ? 'bg-destructive/20 text-destructive' :
+                  item.event_type === 'class' ? 'bg-secondary/20 text-secondary' :
                   'bg-primary/20 text-primary'
                 }`}>
-                  {event.event_type}
+                  {item.event_type}
                 </span>
               </div>
             ))
