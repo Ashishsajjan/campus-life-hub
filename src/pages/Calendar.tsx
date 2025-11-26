@@ -24,7 +24,7 @@ import { useNavigate } from 'react-router-dom';
 export default function Calendar() {
   const [events, setEvents] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
-  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
+  const [view, setView] = useState<'month'>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDayDialogOpen, setIsViewDayDialogOpen] = useState(false);
@@ -253,23 +253,10 @@ export default function Calendar() {
         </div>
       </div>
 
-      {/* View Tabs + Navigation */}
+      {/* Navigation Only */}
       <Card className="glass-strong">
         <CardContent className="p-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex gap-2">
-              {(['month', 'week', 'day'] as const).map((v) => (
-                <Button
-                  key={v}
-                  variant={view === v ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setView(v)}
-                  className="capitalize"
-                >
-                  {v}
-                </Button>
-              ))}
-            </div>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -301,9 +288,8 @@ export default function Calendar() {
       </Card>
 
       {/* Month View */}
-      {view === 'month' && (
-        <Card className="glass-strong">
-          <CardContent className="p-4">
+      <Card className="glass-strong">
+        <CardContent className="p-4">
             <div className="grid grid-cols-7 gap-1">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
                 <div key={day} className="text-center font-semibold text-sm p-2 text-muted-foreground">
@@ -356,16 +342,6 @@ export default function Calendar() {
             </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Week/Day views - simplified for now */}
-      {(view === 'week' || view === 'day') && (
-        <Card className="glass-strong">
-          <CardContent className="pt-6 text-center text-muted-foreground">
-            {view === 'week' ? 'Week' : 'Day'} view coming soon - Use month view for now
-          </CardContent>
-        </Card>
-      )}
 
       {/* View Day Dialog */}
       <Dialog open={isViewDayDialogOpen} onOpenChange={setIsViewDayDialogOpen}>
