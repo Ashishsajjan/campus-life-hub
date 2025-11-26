@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 export default function Dashboard() {
   const [streak, setStreak] = useState({ current: 0, best: 0 });
   const [todayTasks, setTodayTasks] = useState<any[]>([]);
+  const [tomorrowTasks, setTomorrowTasks] = useState<any[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
   const [pomodoroToday, setPomodoroToday] = useState(0);
 
@@ -37,6 +38,8 @@ export default function Dashboard() {
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayAfterTomorrow = new Date(tomorrow);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
 
     const { data: tasks } = await supabase
       .from('tasks')
@@ -46,9 +49,22 @@ export default function Dashboard() {
       .gte('deadline', today.toISOString())
       .lt('deadline', tomorrow.toISOString())
       .order('deadline')
-      .limit(3);
+      .limit(5);
 
     if (tasks) setTodayTasks(tasks);
+
+    // Load tomorrow's tasks
+    const { data: tomorrowTasksData } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_completed', false)
+      .gte('deadline', tomorrow.toISOString())
+      .lt('deadline', dayAfterTomorrow.toISOString())
+      .order('deadline')
+      .limit(5);
+
+    if (tomorrowTasksData) setTomorrowTasks(tomorrowTasksData);
 
     // Load today's and upcoming events from calendar
     const { data: events } = await supabase
@@ -114,8 +130,8 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Today's Tasks & Events */}
-      <div className="grid md:grid-cols-2 gap-4">
+      {/* Today's Tasks, Tomorrow's Tasks & Upcoming Events */}
+      <div className="grid md:grid-cols-3 gap-4">
         <Card className="glass-strong">
           <CardHeader>
             <CardTitle>Today's Tasks</CardTitle>
@@ -128,7 +144,38 @@ export default function Dashboard() {
                 <div key={task.id} className="flex items-center justify-between p-3 glass rounded-xl">
                   <div>
                     <p className="font-medium">{task.title}</p>
-                    <p className="text-sm text-muted-foreground">{task.subject}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {task.subject} • {format(new Date(task.deadline), 'h:mm a')}
+                    </p>
+                  </div>
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    task.priority === 'high' ? 'bg-destructive/20 text-destructive' :
+                    task.priority === 'medium' ? 'bg-primary/20 text-primary' :
+                    'bg-secondary/20 text-secondary'
+                  }`}>
+                    {task.priority}
+                  </span>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="glass-strong">
+          <CardHeader>
+            <CardTitle>Tomorrow's Tasks</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tomorrowTasks.length === 0 ? (
+              <p className="text-muted-foreground">No tasks for tomorrow</p>
+            ) : (
+              tomorrowTasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between p-3 glass rounded-xl">
+                  <div>
+                    <p className="font-medium">{task.title}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {task.subject} • {format(new Date(task.deadline), 'h:mm a')}
+                    </p>
                   </div>
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                     task.priority === 'high' ? 'bg-destructive/20 text-destructive' :
