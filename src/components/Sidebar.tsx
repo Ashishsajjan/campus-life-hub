@@ -8,6 +8,7 @@ import {
   Mail, 
   Bookmark, 
   Files,
+  Smartphone,
   LogOut
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,6 +24,7 @@ const navItems = [
   { icon: Mail, label: 'AI Gmail/Classroom', path: '/ai-mail' },
   { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
   { icon: Files, label: 'Files & Notes', path: '/files' },
+  { icon: Smartphone, label: 'Mobile QR', path: '/mobile-access' },
 ];
 
 export const Sidebar = () => {
