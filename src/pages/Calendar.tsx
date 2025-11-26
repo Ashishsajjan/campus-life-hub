@@ -52,7 +52,8 @@ export default function Calendar() {
       .from('events')
       .select('*')
       .eq('user_id', user.id)
-      .order('event_date');
+      .order('event_date', { ascending: true })
+      .order('start_time', { ascending: true });
 
     if (data) setEvents(data);
   };
