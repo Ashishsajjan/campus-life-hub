@@ -358,13 +358,13 @@ export default function Tasks() {
                   >
                     <div className="flex items-start gap-2">
                       <div
-                        className={`w-4 h-4 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center ${
+                        className={`w-5 h-5 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center transition-all ${
                           task.is_completed
                             ? 'bg-primary border-primary'
-                            : 'border-muted-foreground'
+                            : 'border-foreground/40 bg-background hover:border-primary/60'
                         }`}
                       >
-                        {task.is_completed && <Check className="w-3 h-3 text-primary-foreground" />}
+                        {task.is_completed && <Check className="w-4 h-4 text-primary-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className={`text-xs font-medium truncate ${
