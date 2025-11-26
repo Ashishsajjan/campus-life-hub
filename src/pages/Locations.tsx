@@ -2,21 +2,46 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Locations() {
   const [searchQuery, setSearchQuery] = useState('');
+  const { toast } = useToast();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       const url = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
-      window.open(url, '_blank');
+      openUrl(url);
       setSearchQuery(''); // Clear after search
     }
   };
 
+  const openUrl = (url: string) => {
+    console.log('Opening URL:', url); // Debug log
+    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+    
+    // Check if popup was blocked
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+      toast({
+        title: 'Popup Blocked',
+        description: 'Please allow popups for this site to open Google Maps',
+        variant: 'destructive',
+      });
+      // Fallback: try opening in same tab
+      setTimeout(() => {
+        window.location.href = url;
+      }, 2000);
+    } else {
+      toast({
+        title: 'Opening Google Maps',
+        description: 'Location search opened in new tab',
+      });
+    }
+  };
+
   const openMapsUrl = (url: string) => {
-    window.open(url, '_blank');
+    openUrl(url);
   };
 
   return (
