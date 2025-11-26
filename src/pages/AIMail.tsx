@@ -1,47 +1,171 @@
-import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
-import { Mail, FileText, AlertCircle, ListChecks, Sparkles } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Mail, Calendar, CheckSquare, Loader2, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 /**
- * AI Gmail/Classroom Analyzer
- * - Connect buttons for future OAuth integration
- * - Text input area to paste email/announcement content
- * - Analyze button that extracts important alerts, deadlines, tasks
- * - Backend endpoint /api/analyzeMessages would call AI API in production
+ * AI Gmail/Classroom Analyzer with Full OAuth Integration
+ * - Real OAuth connection to Gmail and Google Classroom
+ * - Fetches actual emails and announcements
+ * - Displays connected status and data
  */
 export default function AIMail() {
-  const [inputText, setInputText] = useState('');
+  const [inputText, setInputText] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [classroomConnected, setClassroomConnected] = useState(false);
+  const [gmailMessages, setGmailMessages] = useState<any[]>([]);
+  const [classroomAnnouncements, setClassroomAnnouncements] = useState<any[]>([]);
+  const [fetchingGmail, setFetchingGmail] = useState(false);
+  const [fetchingClassroom, setFetchingClassroom] = useState(false);
   const [results, setResults] = useState<{
     alerts: string[];
     tasks: string[];
     summary: string;
   } | null>(null);
-  const { toast } = useToast();
 
-  // Mock AI analysis - in production, call backend /api/analyzeMessages
+  // Check connection status on mount
+  useEffect(() => {
+    checkConnections();
+  }, []);
+
+  const checkConnections = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: tokens } = await supabase
+        .from('oauth_tokens')
+        .select('provider')
+        .eq('user_id', user.id);
+
+      if (tokens) {
+        setGmailConnected(tokens.some(t => t.provider === 'gmail'));
+        setClassroomConnected(tokens.some(t => t.provider === 'classroom'));
+      }
+    } catch (error) {
+      console.error('Error checking connections:', error);
+    }
+  };
+
+  const handleConnectGmail = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please log in first");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('google-oauth-start', {
+        body: { provider: 'gmail' }
+      });
+
+      if (error) throw error;
+
+      // Open OAuth window
+      const authWindow = window.open(data.authUrl, 'oauth', 'width=600,height=700');
+      
+      // Listen for OAuth success message
+      const messageHandler = (event: MessageEvent) => {
+        if (event.data.type === 'oauth-success' && event.data.provider === 'gmail') {
+          setGmailConnected(true);
+          toast.success("Gmail connected successfully!");
+          window.removeEventListener('message', messageHandler);
+          fetchGmailMessages();
+        }
+      };
+      
+      window.addEventListener('message', messageHandler);
+    } catch (error: any) {
+      console.error('Error connecting Gmail:', error);
+      toast.error(error.message || "Failed to connect Gmail");
+    }
+  };
+
+  const handleConnectClassroom = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Please log in first");
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('google-oauth-start', {
+        body: { provider: 'classroom' }
+      });
+
+      if (error) throw error;
+
+      // Open OAuth window
+      const authWindow = window.open(data.authUrl, 'oauth', 'width=600,height=700');
+      
+      // Listen for OAuth success message
+      const messageHandler = (event: MessageEvent) => {
+        if (event.data.type === 'oauth-success' && event.data.provider === 'classroom') {
+          setClassroomConnected(true);
+          toast.success("Google Classroom connected successfully!");
+          window.removeEventListener('message', messageHandler);
+          fetchClassroomAnnouncements();
+        }
+      };
+      
+      window.addEventListener('message', messageHandler);
+    } catch (error: any) {
+      console.error('Error connecting Classroom:', error);
+      toast.error(error.message || "Failed to connect Google Classroom");
+    }
+  };
+
+  const fetchGmailMessages = async () => {
+    setFetchingGmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('gmail-fetch');
+      
+      if (error) throw error;
+      
+      setGmailMessages(data.messages || []);
+      toast.success(`Fetched ${data.messages?.length || 0} Gmail messages`);
+    } catch (error: any) {
+      console.error('Error fetching Gmail:', error);
+      toast.error(error.message || "Failed to fetch Gmail messages");
+    } finally {
+      setFetchingGmail(false);
+    }
+  };
+
+  const fetchClassroomAnnouncements = async () => {
+    setFetchingClassroom(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('classroom-fetch');
+      
+      if (error) throw error;
+      
+      setClassroomAnnouncements(data.announcements || []);
+      toast.success(`Fetched ${data.announcements?.length || 0} Classroom announcements`);
+    } catch (error: any) {
+      console.error('Error fetching Classroom:', error);
+      toast.error(error.message || "Failed to fetch Classroom announcements");
+    } finally {
+      setFetchingClassroom(false);
+    }
+  };
+
+  // Mock AI analysis for pasted text
   const handleAnalyze = async () => {
     if (!inputText.trim()) {
-      toast({
-        title: 'Error',
-        description: 'Please paste some text to analyze',
-        variant: 'destructive'
-      });
+      toast.error("Please paste some text to analyze");
       return;
     }
 
     setAnalyzing(true);
 
-    // Simulate API call with timeout
     setTimeout(() => {
-      // Mock extraction logic - in production, AI would parse this
       const mockAlerts = [];
       const mockTasks = [];
 
-      // Simple keyword detection for demo
       if (inputText.toLowerCase().includes('deadline') || inputText.toLowerCase().includes('due')) {
         mockAlerts.push('⚠️ Deadline detected in message');
         mockTasks.push('Complete assignment mentioned in email');
@@ -54,15 +178,7 @@ export default function AIMail() {
         mockAlerts.push('💰 Fee/Payment reminder detected');
         mockTasks.push('Pay college fees before due date');
       }
-      if (inputText.toLowerCase().includes('class') || inputText.toLowerCase().includes('lecture')) {
-        mockAlerts.push('🎓 Class/Lecture update found');
-      }
-      if (inputText.toLowerCase().includes('submission')) {
-        mockAlerts.push('📤 Submission deadline detected');
-        mockTasks.push('Submit assignment/project');
-      }
 
-      // Default messages if nothing detected
       if (mockAlerts.length === 0) {
         mockAlerts.push('ℹ️ General information message');
       }
@@ -70,31 +186,12 @@ export default function AIMail() {
       setResults({
         alerts: mockAlerts,
         tasks: mockTasks.length > 0 ? mockTasks : ['No specific tasks detected'],
-        summary: inputText.length > 150
-          ? inputText.substring(0, 150) + '...'
-          : inputText
+        summary: inputText.length > 150 ? inputText.substring(0, 150) + '...' : inputText
       });
 
       setAnalyzing(false);
-      toast({
-        title: 'Analysis Complete',
-        description: `Found ${mockAlerts.length} alerts and ${mockTasks.length} tasks`
-      });
+      toast.success(`Found ${mockAlerts.length} alerts and ${mockTasks.length} tasks`);
     }, 1500);
-  };
-
-  const handleConnectGmail = () => {
-    toast({
-      title: 'Coming Soon',
-      description: 'Gmail OAuth integration will be implemented using Google APIs'
-    });
-  };
-
-  const handleConnectClassroom = () => {
-    toast({
-      title: 'Coming Soon',
-      description: 'Google Classroom integration will be implemented using Google APIs'
-    });
   };
 
   return (
@@ -102,64 +199,118 @@ export default function AIMail() {
       <h1 className="text-3xl font-bold">AI Gmail & Classroom Analyzer</h1>
 
       {/* Connection Buttons */}
-      <div className="grid md:grid-cols-2 gap-4">
-        <Card className="glass-strong hover:border-primary/50 transition-all cursor-pointer" onClick={handleConnectGmail}>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-              <Mail className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Connect Gmail</h3>
-              <p className="text-sm text-muted-foreground">
-                Auto-analyze emails for deadlines
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-strong hover:border-primary/50 transition-all cursor-pointer" onClick={handleConnectClassroom}>
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center">
-              <FileText className="w-6 h-6 text-secondary" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Connect Google Classroom</h3>
-              <p className="text-sm text-muted-foreground">
-                Extract assignments and due dates
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid md:grid-cols-2 gap-4 mb-6">
+        <div className="space-y-2">
+          <Button
+            onClick={gmailConnected ? fetchGmailMessages : handleConnectGmail}
+            className="w-full"
+            variant={gmailConnected ? "default" : "outline"}
+            disabled={fetchingGmail}
+          >
+            {fetchingGmail ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Mail className="mr-2 h-4 w-4" />
+            )}
+            {gmailConnected ? "Refresh Gmail" : "Connect Gmail"}
+          </Button>
+          {gmailConnected && (
+            <p className="text-xs text-muted-foreground text-center">✓ Connected</p>
+          )}
+        </div>
+        
+        <div className="space-y-2">
+          <Button
+            onClick={classroomConnected ? fetchClassroomAnnouncements : handleConnectClassroom}
+            className="w-full"
+            variant={classroomConnected ? "default" : "outline"}
+            disabled={fetchingClassroom}
+          >
+            {fetchingClassroom ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Calendar className="mr-2 h-4 w-4" />
+            )}
+            {classroomConnected ? "Refresh Classroom" : "Connect Google Classroom"}
+          </Button>
+          {classroomConnected && (
+            <p className="text-xs text-muted-foreground text-center">✓ Connected</p>
+          )}
+        </div>
       </div>
 
-      {/* Analysis Section */}
-      <Card className="glass-strong">
+      {/* Display Gmail Messages */}
+      {gmailMessages.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Mail className="mr-2 h-5 w-5" />
+              Recent Gmail Messages
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {gmailMessages.map((message) => (
+              <div key={message.id} className="p-4 border rounded-lg space-y-2">
+                <div className="flex justify-between items-start">
+                  <h4 className="font-semibold">{message.subject}</h4>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <p className="text-sm text-muted-foreground">From: {message.from}</p>
+                <p className="text-xs text-muted-foreground">{message.date}</p>
+                <p className="text-sm mt-2">{message.snippet}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Display Classroom Announcements */}
+      {classroomAnnouncements.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Calendar className="mr-2 h-5 w-5" />
+              Classroom Announcements
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {classroomAnnouncements.map((announcement) => (
+              <div key={announcement.id} className="p-4 border rounded-lg space-y-2">
+                <div className="flex justify-between items-start">
+                  <h4 className="font-semibold">{announcement.courseName}</h4>
+                </div>
+                <p className="text-sm">{announcement.text}</p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(announcement.creationTime).toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Text Analysis Section */}
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            Paste Email or Announcement Text
-          </CardTitle>
+          <CardTitle>Analyze Text Manually</CardTitle>
+          <CardDescription>Paste email or announcement text to analyze</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Textarea
+            placeholder="Paste your email or announcement text here..."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
-            placeholder="Paste email content, classroom announcements, or any college communication here..."
-            className="min-h-[200px] bg-background/50"
+            rows={6}
           />
-          <Button
-            onClick={handleAnalyze}
-            disabled={analyzing || !inputText.trim()}
-            className="w-full gap-2"
-          >
+          <Button onClick={handleAnalyze} disabled={analyzing || !inputText.trim()} className="w-full">
             {analyzing ? (
               <>
-                <Sparkles className="w-4 h-4 animate-pulse" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Analyzing...
               </>
             ) : (
               <>
-                <Sparkles className="w-4 h-4" />
+                <CheckSquare className="mr-2 h-4 w-4" />
                 Analyze Messages
               </>
             )}
@@ -167,21 +318,17 @@ export default function AIMail() {
         </CardContent>
       </Card>
 
-      {/* Results */}
+      {/* Analysis Results */}
       {results && (
         <div className="grid md:grid-cols-2 gap-4">
-          {/* Important Alerts */}
-          <Card className="glass-strong">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <AlertCircle className="w-5 h-5 text-destructive" />
-                Important Alerts
-              </CardTitle>
+              <CardTitle className="text-lg">Important Alerts</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {results.alerts.map((alert, idx) => (
-                  <div key={idx} className="p-3 glass rounded-lg border border-glass-border">
+                  <div key={idx} className="p-3 bg-muted rounded-lg">
                     <p className="text-sm">{alert}</p>
                   </div>
                 ))}
@@ -189,32 +336,22 @@ export default function AIMail() {
             </CardContent>
           </Card>
 
-          {/* Detected Tasks */}
-          <Card className="glass-strong">
+          <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ListChecks className="w-5 h-5 text-primary" />
-                Tasks from Messages
-              </CardTitle>
+              <CardTitle className="text-lg">Tasks from Messages</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
                 {results.tasks.map((task, idx) => (
-                  <div key={idx} className="p-3 glass rounded-lg border border-glass-border flex items-start gap-2">
-                    <p className="text-sm flex-1">{task}</p>
-                    {task !== 'No specific tasks detected' && (
-                      <Button size="sm" variant="outline" className="text-xs">
-                        Add
-                      </Button>
-                    )}
+                  <div key={idx} className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm">{task}</p>
                   </div>
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          {/* Summary */}
-          <Card className="glass-strong md:col-span-2">
+          <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle className="text-lg">Summary</CardTitle>
             </CardHeader>
@@ -226,13 +363,11 @@ export default function AIMail() {
       )}
 
       {/* Info Note */}
-      <Card className="glass border-primary/20">
+      <Card className="border-primary/20">
         <CardContent className="pt-6">
           <p className="text-sm text-muted-foreground">
-            <strong>Note:</strong> This is a preview interface. In production, the backend endpoint 
-            <code className="mx-1 px-1 py-0.5 bg-muted rounded">/api/analyzeMessages</code> 
-            would call an AI API to intelligently extract deadlines, tasks, and important information 
-            from your emails and classroom announcements.
+            <strong>Note:</strong> Gmail and Classroom integration uses real OAuth authentication. 
+            The text analyzer provides mock analysis for demonstration purposes.
           </p>
         </CardContent>
       </Card>
