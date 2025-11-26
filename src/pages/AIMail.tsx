@@ -69,7 +69,12 @@ export default function AIMail() {
       if (error) throw error;
 
       // Open OAuth window
-      const authWindow = window.open(data.authUrl, 'oauth', 'width=600,height=700');
+      const authWindow = window.open(data.authUrl, 'gmail-oauth', 'width=600,height=700,scrollbars=yes,resizable=yes');
+      
+      if (!authWindow) {
+        toast.error("Popup blocked! Please allow popups for this site.");
+        return;
+      }
       
       // Listen for OAuth success message
       const messageHandler = (event: MessageEvent) => {
@@ -77,11 +82,23 @@ export default function AIMail() {
           setGmailConnected(true);
           toast.success("Gmail connected successfully!");
           window.removeEventListener('message', messageHandler);
+          if (authWindow && !authWindow.closed) {
+            authWindow.close();
+          }
           fetchGmailMessages();
         }
       };
       
       window.addEventListener('message', messageHandler);
+      
+      // Check if window closed manually
+      const checkClosed = setInterval(() => {
+        if (authWindow.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageHandler);
+          checkConnections(); // Recheck in case auth completed
+        }
+      }, 1000);
     } catch (error: any) {
       console.error('Error connecting Gmail:', error);
       toast.error(error.message || "Failed to connect Gmail");
@@ -106,7 +123,12 @@ export default function AIMail() {
       if (error) throw error;
 
       // Open OAuth window
-      const authWindow = window.open(data.authUrl, 'oauth', 'width=600,height=700');
+      const authWindow = window.open(data.authUrl, 'classroom-oauth', 'width=600,height=700,scrollbars=yes,resizable=yes');
+      
+      if (!authWindow) {
+        toast.error("Popup blocked! Please allow popups for this site.");
+        return;
+      }
       
       // Listen for OAuth success message
       const messageHandler = (event: MessageEvent) => {
@@ -114,11 +136,23 @@ export default function AIMail() {
           setClassroomConnected(true);
           toast.success("Google Classroom connected successfully!");
           window.removeEventListener('message', messageHandler);
+          if (authWindow && !authWindow.closed) {
+            authWindow.close();
+          }
           fetchClassroomAnnouncements();
         }
       };
       
       window.addEventListener('message', messageHandler);
+      
+      // Check if window closed manually
+      const checkClosed = setInterval(() => {
+        if (authWindow.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageHandler);
+          checkConnections(); // Recheck in case auth completed
+        }
+      }, 1000);
     } catch (error: any) {
       console.error('Error connecting Classroom:', error);
       toast.error(error.message || "Failed to connect Google Classroom");
