@@ -2,46 +2,17 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 
 export default function Locations() {
   const [searchQuery, setSearchQuery] = useState('');
-  const { toast } = useToast();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       const url = `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`;
-      openUrl(url);
-      setSearchQuery(''); // Clear after search
+      window.open(url, '_blank', 'noopener,noreferrer');
+      setSearchQuery('');
     }
-  };
-
-  const openUrl = (url: string) => {
-    console.log('Opening URL:', url); // Debug log
-    const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-    
-    // Check if popup was blocked
-    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-      toast({
-        title: 'Popup Blocked',
-        description: 'Please allow popups for this site to open Google Maps',
-        variant: 'destructive',
-      });
-      // Fallback: try opening in same tab
-      setTimeout(() => {
-        window.location.href = url;
-      }, 2000);
-    } else {
-      toast({
-        title: 'Opening Google Maps',
-        description: 'Location search opened in new tab',
-      });
-    }
-  };
-
-  const openMapsUrl = (url: string) => {
-    openUrl(url);
   };
 
   return (
@@ -91,17 +62,21 @@ export default function Locations() {
                 variant="secondary"
                 size="lg"
                 className="w-full h-14 text-base hover-scale"
-                onClick={() => openMapsUrl('https://www.google.com/maps/search/restaurants+near+me')}
+                asChild
               >
-                🍕 Find Restaurants
+                <a href="https://www.google.com/maps/search/restaurants+near+me" target="_blank" rel="noopener noreferrer">
+                  🍕 Find Restaurants
+                </a>
               </Button>
               <Button
                 variant="secondary"
                 size="lg"
                 className="w-full h-14 text-base hover-scale"
-                onClick={() => openMapsUrl('https://www.google.com/maps/search/hotels+near+me')}
+                asChild
               >
-                🏨 Find Hotels
+                <a href="https://www.google.com/maps/search/hotels+near+me" target="_blank" rel="noopener noreferrer">
+                  🏨 Find Hotels
+                </a>
               </Button>
             </div>
           </section>
@@ -117,17 +92,21 @@ export default function Locations() {
                 variant="secondary"
                 size="lg"
                 className="w-full h-14 text-base hover-scale"
-                onClick={() => openMapsUrl('https://www.google.com/maps/search/stationery+shops+near+me')}
+                asChild
               >
-                📚 Find Stationery Shops
+                <a href="https://www.google.com/maps/search/stationery+shops+near+me" target="_blank" rel="noopener noreferrer">
+                  📚 Find Stationery Shops
+                </a>
               </Button>
               <Button
                 variant="secondary"
                 size="lg"
                 className="w-full h-14 text-base hover-scale"
-                onClick={() => openMapsUrl('https://www.google.com/maps/search/printing+xerox+shops+near+me')}
+                asChild
               >
-                🖨 Find Printing Shops
+                <a href="https://www.google.com/maps/search/printing+xerox+shops+near+me" target="_blank" rel="noopener noreferrer">
+                  🖨 Find Printing Shops
+                </a>
               </Button>
             </div>
           </section>
@@ -143,17 +122,21 @@ export default function Locations() {
                 variant="secondary"
                 size="lg"
                 className="w-full h-14 text-base hover-scale"
-                onClick={() => openMapsUrl('https://www.google.com/maps/search/PG+hostel+accommodation+near+me')}
+                asChild
               >
-                🏠 Find PG/Hostels
+                <a href="https://www.google.com/maps/search/PG+hostel+accommodation+near+me" target="_blank" rel="noopener noreferrer">
+                  🏠 Find PG/Hostels
+                </a>
               </Button>
               <Button
                 variant="secondary"
                 size="lg"
                 className="w-full h-14 text-base hover-scale"
-                onClick={() => openMapsUrl('https://www.google.com/maps/search/PG+hostel+near+college+university')}
+                asChild
               >
-                🏫 Near Colleges
+                <a href="https://www.google.com/maps/search/PG+hostel+near+college+university" target="_blank" rel="noopener noreferrer">
+                  🏫 Near Colleges
+                </a>
               </Button>
             </div>
           </section>
@@ -169,25 +152,31 @@ export default function Locations() {
                 variant="secondary"
                 size="lg"
                 className="w-full h-14 text-base hover-scale"
-                onClick={() => openMapsUrl('https://www.google.com/maps/search/tourist+places+attractions+near+me')}
+                asChild
               >
-                🗺 Tourist Places
+                <a href="https://www.google.com/maps/search/tourist+places+attractions+near+me" target="_blank" rel="noopener noreferrer">
+                  🗺 Tourist Places
+                </a>
               </Button>
               <Button
                 variant="secondary"
                 size="lg"
                 className="w-full h-14 text-base hover-scale"
-                onClick={() => openMapsUrl('https://www.google.com/maps/search/metro+stations+near+me')}
+                asChild
               >
-                🚇 Metro Stations
+                <a href="https://www.google.com/maps/search/metro+stations+near+me" target="_blank" rel="noopener noreferrer">
+                  🚇 Metro Stations
+                </a>
               </Button>
               <Button
                 variant="secondary"
                 size="lg"
                 className="w-full h-14 text-base hover-scale"
-                onClick={() => openMapsUrl('https://www.google.com/maps/search/bus+stops+stations+near+me')}
+                asChild
               >
-                🚌 Bus Stops
+                <a href="https://www.google.com/maps/search/bus+stops+stations+near+me" target="_blank" rel="noopener noreferrer">
+                  🚌 Bus Stops
+                </a>
               </Button>
             </div>
           </section>
