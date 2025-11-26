@@ -8,8 +8,6 @@ import { format } from 'date-fns';
 
 export default function Dashboard() {
   const [streak, setStreak] = useState({ current: 0, best: 0 });
-  const [todayTasks, setTodayTasks] = useState<any[]>([]);
-  const [tomorrowTasks, setTomorrowTasks] = useState<any[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
   const [pomodoroToday, setPomodoroToday] = useState(0);
 
@@ -33,40 +31,7 @@ export default function Dashboard() {
       setPomodoroToday(settings.pomodoro_sessions_today || 0);
     }
 
-    // Load today's tasks
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const dayAfterTomorrow = new Date(tomorrow);
-    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 1);
-
-    const { data: tasks } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_completed', false)
-      .gte('deadline', today.toISOString())
-      .lt('deadline', tomorrow.toISOString())
-      .order('deadline')
-      .limit(5);
-
-    if (tasks) setTodayTasks(tasks);
-
-    // Load tomorrow's tasks
-    const { data: tomorrowTasksData } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_completed', false)
-      .gte('deadline', tomorrow.toISOString())
-      .lt('deadline', dayAfterTomorrow.toISOString())
-      .order('deadline')
-      .limit(5);
-
-    if (tomorrowTasksData) setTomorrowTasks(tomorrowTasksData);
-
-    // Load today's and upcoming events from calendar
+    // Load upcoming events from calendar
     const { data: events } = await supabase
       .from('events')
       .select('*')
@@ -84,7 +49,7 @@ export default function Dashboard() {
       <h1 className="text-3xl font-bold">Dashboard</h1>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="glass-strong border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Current Streak</CardTitle>
@@ -93,17 +58,6 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-3xl font-bold gradient-text">{streak.current} days</div>
             <p className="text-xs text-muted-foreground mt-1">Best: {streak.best} days</p>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-strong border-secondary/20">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Today's Tasks</CardTitle>
-            <ListChecks className="h-4 w-4 text-secondary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{todayTasks.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">Pending completion</p>
           </CardContent>
         </Card>
 
@@ -130,105 +84,39 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Today's Tasks, Tomorrow's Tasks & Upcoming Events */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <Card className="glass-strong">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Today's Tasks
-              <span className="text-sm font-normal text-muted-foreground">({todayTasks.length})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {todayTasks.length === 0 ? (
-              <p className="text-muted-foreground">No tasks for today. Great job!</p>
-            ) : (
-              todayTasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-3 glass rounded-xl">
-                  <div>
-                    <p className="font-medium">{task.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {task.subject} • {format(new Date(task.deadline), 'h:mm a')}
-                    </p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    task.priority === 'high' ? 'bg-destructive/20 text-destructive' :
-                    task.priority === 'medium' ? 'bg-primary/20 text-primary' :
-                    'bg-secondary/20 text-secondary'
-                  }`}>
-                    {task.priority}
-                  </span>
+      {/* Upcoming Events */}
+      <Card className="glass-strong">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Upcoming Events
+            <span className="text-sm font-normal text-muted-foreground">({upcomingEvents.length})</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {upcomingEvents.length === 0 ? (
+            <p className="text-muted-foreground">No upcoming events</p>
+          ) : (
+            upcomingEvents.map((event) => (
+              <div key={event.id} className="flex items-center justify-between p-3 glass rounded-xl">
+                <div>
+                  <p className="font-medium">{event.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {event.subject} • {format(new Date(event.event_date), 'MMM d')}
+                    {event.start_time && ` • ${event.start_time}`}
+                  </p>
                 </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="glass-strong">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Tomorrow's Tasks
-              <span className="text-sm font-normal text-muted-foreground">({tomorrowTasks.length})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tomorrowTasks.length === 0 ? (
-              <p className="text-muted-foreground">No tasks for tomorrow</p>
-            ) : (
-              tomorrowTasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-3 glass rounded-xl">
-                  <div>
-                    <p className="font-medium">{task.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {task.subject} • {format(new Date(task.deadline), 'h:mm a')}
-                    </p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    task.priority === 'high' ? 'bg-destructive/20 text-destructive' :
-                    task.priority === 'medium' ? 'bg-primary/20 text-primary' :
-                    'bg-secondary/20 text-secondary'
-                  }`}>
-                    {task.priority}
-                  </span>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="glass-strong">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Upcoming Events
-              <span className="text-sm font-normal text-muted-foreground">({upcomingEvents.length})</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {upcomingEvents.length === 0 ? (
-              <p className="text-muted-foreground">No upcoming events</p>
-            ) : (
-              upcomingEvents.map((event) => (
-                <div key={event.id} className="flex items-center justify-between p-3 glass rounded-xl">
-                  <div>
-                    <p className="font-medium">{event.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {event.subject} • {format(new Date(event.event_date), 'MMM d')}
-                      {event.start_time && ` • ${event.start_time}`}
-                    </p>
-                  </div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                    event.event_type === 'exam' ? 'bg-destructive/20 text-destructive' :
-                    event.event_type === 'class' ? 'bg-secondary/20 text-secondary' :
-                    'bg-primary/20 text-primary'
-                  }`}>
-                    {event.event_type}
-                  </span>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  event.event_type === 'exam' ? 'bg-destructive/20 text-destructive' :
+                  event.event_type === 'class' ? 'bg-secondary/20 text-secondary' :
+                  'bg-primary/20 text-primary'
+                }`}>
+                  {event.event_type}
+                </span>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       {/* Quick Actions */}
       <Card className="glass-strong">
