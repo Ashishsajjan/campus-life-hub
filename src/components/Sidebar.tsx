@@ -6,7 +6,6 @@ import {
   Calendar, 
   MapPin, 
   Mail, 
-  MessageSquare, 
   Bookmark, 
   Files,
   LogOut
@@ -22,9 +21,8 @@ const navItems = [
   { icon: Calendar, label: 'Calendar', path: '/calendar' },
   { icon: MapPin, label: 'Locations', path: '/locations' },
   { icon: Mail, label: 'AI Gmail/Classroom', path: '/ai-mail' },
-  { icon: MessageSquare, label: 'AI Chat', path: '/chat' },
   { icon: Bookmark, label: 'Bookmarks', path: '/bookmarks' },
-  { icon: Files, label: 'Files', path: '/files' },
+  { icon: Files, label: 'Files & Notes', path: '/files' },
 ];
 
 export const Sidebar = () => {

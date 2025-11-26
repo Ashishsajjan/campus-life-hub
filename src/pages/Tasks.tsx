@@ -9,8 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Check } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
 
+/**
+ * Enhanced Smart Tasks with Weekly Schedule Strip
+ * - Shows weekly calendar strip with checkboxes for each day's tasks
+ * - When task is created/updated, automatically creates linked calendar event
+ * - Maintains daily streak tracking
+ */
 export default function Tasks() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [filter, setFilter] = useState('all');
@@ -24,6 +30,10 @@ export default function Tasks() {
     priority: 'medium'
   });
   const { toast } = useToast();
+
+  // Get current week dates (Mon-Sun)
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   useEffect(() => {
     loadTasks();
@@ -67,20 +77,40 @@ export default function Tasks() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { error } = await supabase.from('tasks').insert({
+    const deadlineDate = new Date(formData.deadline);
+
+    // Insert task
+    const { data: taskData, error: taskError } = await supabase.from('tasks').insert({
       ...formData,
       user_id: user.id,
-      deadline: new Date(formData.deadline).toISOString()
+      deadline: deadlineDate.toISOString()
+    }).select().single();
+
+    if (taskError) {
+      toast({ title: 'Error', description: taskError.message, variant: 'destructive' });
+      return;
+    }
+
+    // Create linked calendar event for this task
+    const { error: eventError } = await supabase.from('events').insert({
+      user_id: user.id,
+      title: formData.title,
+      event_type: 'assignment',
+      event_date: format(deadlineDate, 'yyyy-MM-dd'),
+      start_time: format(deadlineDate, 'HH:mm'),
+      end_time: format(addDays(deadlineDate, 0), 'HH:mm'),
+      subject: formData.subject,
+      notes: `Task deadline: ${formData.description}`
     });
 
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Success', description: 'Task created successfully' });
-      setIsDialogOpen(false);
-      setFormData({ title: '', description: '', category: 'Study', subject: '', deadline: '', priority: 'medium' });
-      loadTasks();
+    if (eventError) {
+      console.log('Could not create calendar event:', eventError);
     }
+
+    toast({ title: 'Success', description: 'Task created and added to calendar' });
+    setIsDialogOpen(false);
+    setFormData({ title: '', description: '', category: 'Study', subject: '', deadline: '', priority: 'medium' });
+    loadTasks();
   };
 
   const toggleComplete = async (task: any) => {
@@ -104,7 +134,7 @@ export default function Tasks() {
           .from('user_settings')
           .select('*')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         const today = format(new Date(), 'yyyy-MM-dd');
         
@@ -130,6 +160,11 @@ export default function Tasks() {
       
       loadTasks();
     }
+  };
+
+  // Get tasks for a specific day
+  const getTasksForDay = (day: Date) => {
+    return tasks.filter(task => isSameDay(new Date(task.deadline), day));
   };
 
   return (
@@ -202,7 +237,7 @@ export default function Tasks() {
                 />
               </div>
               <div>
-                <Label>Deadline</Label>
+                <Label>Deadline (Date & Time)</Label>
                 <Input
                   type="datetime-local"
                   value={formData.deadline}
@@ -216,6 +251,70 @@ export default function Tasks() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Weekly Schedule Strip */}
+      <Card className="glass-strong">
+        <CardHeader>
+          <CardTitle>This Week's Schedule</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-7 gap-2">
+            {weekDays.map((day, idx) => {
+              const dayTasks = getTasksForDay(day);
+              const isToday = isSameDay(day, new Date());
+              
+              return (
+                <div
+                  key={idx}
+                  className={`p-3 rounded-xl border ${
+                    isToday ? 'border-primary bg-primary/10' : 'border-glass-border glass'
+                  } min-h-[120px]`}
+                >
+                  <div className="text-center mb-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {format(day, 'EEE')}
+                    </p>
+                    <p className={`text-lg font-bold ${isToday ? 'text-primary' : ''}`}>
+                      {format(day, 'd')}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    {dayTasks.slice(0, 3).map((task) => (
+                      <div
+                        key={task.id}
+                        className="flex items-start gap-1 text-xs group cursor-pointer"
+                        onClick={() => toggleComplete(task)}
+                      >
+                        <div
+                          className={`w-3 h-3 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center ${
+                            task.is_completed
+                              ? 'bg-primary border-primary'
+                              : 'border-muted-foreground group-hover:border-primary'
+                          }`}
+                        >
+                          {task.is_completed && <Check className="w-2 h-2 text-primary-foreground" />}
+                        </div>
+                        <p
+                          className={`line-clamp-2 ${
+                            task.is_completed ? 'line-through text-muted-foreground' : ''
+                          }`}
+                        >
+                          {format(new Date(task.deadline), 'HH:mm')} {task.title}
+                        </p>
+                      </div>
+                    ))}
+                    {dayTasks.length > 3 && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        +{dayTasks.length - 3} more
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Filter Tabs */}
       <div className="flex gap-2 flex-wrap">
@@ -231,7 +330,7 @@ export default function Tasks() {
         ))}
       </div>
 
-      {/* Tasks List */}
+      {/* Detailed Tasks List */}
       <div className="space-y-3">
         {tasks.length === 0 ? (
           <Card className="glass-strong">
