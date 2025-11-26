@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +27,7 @@ export default function Calendar() {
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isViewDayDialogOpen, setIsViewDayDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [formData, setFormData] = useState({
     title: '',
@@ -73,6 +75,11 @@ export default function Calendar() {
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
+    setIsViewDayDialogOpen(true);
+  };
+
+  const openCreateTaskDialog = (date: Date) => {
+    setSelectedDate(date);
     const defaultDeadline = new Date(date);
     defaultDeadline.setHours(9, 0, 0, 0);
     setFormData({
@@ -112,11 +119,27 @@ export default function Calendar() {
     }
   };
 
+  const toggleTaskComplete = async (task: any) => {
+    const newCompleted = !task.is_completed;
+    
+    const { error } = await supabase
+      .from('tasks')
+      .update({ 
+        is_completed: newCompleted,
+        completed_at: newCompleted ? new Date().toISOString() : null
+      })
+      .eq('id', task.id);
+
+    if (!error) {
+      loadTasks();
+    }
+  };
+
   // Get events and tasks for a specific date
   const getItemsForDate = (date: Date) => {
     const dateEvents = events.filter(e => isSameDay(new Date(e.event_date), date));
     const dateTasks = tasks.filter(t => isSameDay(new Date(t.deadline), date));
-    return { events: dateEvents, tasks: dateTasks };
+    return { events: dateEvents, tasks: dateTasks.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime()) };
   };
 
   // Month view calendar grid
@@ -343,6 +366,101 @@ export default function Calendar() {
           </CardContent>
         </Card>
       )}
+
+      {/* View Day Dialog */}
+      <Dialog open={isViewDayDialogOpen} onOpenChange={setIsViewDayDialogOpen}>
+        <DialogContent className="glass-strong max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedDate && format(selectedDate, 'EEEE, MMMM d, yyyy')}
+            </DialogTitle>
+          </DialogHeader>
+          
+          {selectedDate && (
+            <div className="space-y-4">
+              {/* Add Task Button */}
+              <Button 
+                onClick={() => {
+                  setIsViewDayDialogOpen(false);
+                  openCreateTaskDialog(selectedDate);
+                }}
+                className="w-full"
+                variant="outline"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Task for This Day
+              </Button>
+
+              {/* Tasks Section */}
+              {getItemsForDate(selectedDate).tasks.length > 0 ? (
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm text-muted-foreground">Tasks</h3>
+                  {getItemsForDate(selectedDate).tasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="p-3 rounded-lg glass border"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={task.is_completed}
+                          onCheckedChange={() => toggleTaskComplete(task)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1">
+                          <p className={`font-medium ${
+                            task.is_completed ? 'line-through text-muted-foreground' : ''
+                          }`}>
+                            {task.title}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {format(new Date(task.deadline), 'HH:mm')}
+                            {task.subject && ` • ${task.subject}`}
+                          </p>
+                          {task.description && (
+                            <p className="text-sm text-muted-foreground mt-2">{task.description}</p>
+                          )}
+                        </div>
+                        <span className={`px-3 py-1 rounded text-xs font-medium ${
+                          task.priority === 'high' ? 'bg-destructive/20 text-destructive' :
+                          task.priority === 'medium' ? 'bg-primary/20 text-primary' :
+                          'bg-secondary/20 text-secondary'
+                        }`}>
+                          {task.priority}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No tasks for this day
+                </div>
+              )}
+
+              {/* Events Section */}
+              {getItemsForDate(selectedDate).events.length > 0 && (
+                <div className="space-y-3 pt-4 border-t">
+                  <h3 className="font-semibold text-sm text-muted-foreground">Events</h3>
+                  {getItemsForDate(selectedDate).events.map((event) => (
+                    <div
+                      key={event.id}
+                      className="p-3 rounded-lg bg-accent/20 border border-accent/30"
+                    >
+                      <p className="font-medium">{event.title}</p>
+                      {event.start_time && (
+                        <p className="text-sm text-muted-foreground">{event.start_time}</p>
+                      )}
+                      {event.subject && (
+                        <p className="text-sm text-muted-foreground">{event.subject}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
