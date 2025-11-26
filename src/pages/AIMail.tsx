@@ -252,9 +252,19 @@ ${message.body || ''}
 
       toast.success(`Created ${data.tasksCreated} tasks and ${data.eventsCreated} calendar events!`);
       
+      // Count tasks with reminders
+      const tasksWithReminders = data.tasks.filter((t: any) => t.reminder_time).length;
+      if (tasksWithReminders > 0) {
+        toast.info(`Set ${tasksWithReminders} reminder(s) for upcoming deadlines`);
+      }
+      
       setResults({
-        alerts: [`📧 Email analyzed successfully`],
-        tasks: data.tasks.map((t: any) => t.title),
+        alerts: [
+          `📧 Email analyzed successfully`,
+          `✅ Created ${data.tasksCreated} tasks`,
+          tasksWithReminders > 0 ? `⏰ Set ${tasksWithReminders} reminders` : ''
+        ].filter(Boolean),
+        tasks: data.tasks.map((t: any) => `${t.title}${t.reminder_time ? ' (reminder set)' : ''}`),
         summary: data.summary
       });
 
