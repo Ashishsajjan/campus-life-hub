@@ -193,6 +193,50 @@ export default function AIMail() {
     }
   };
 
+  const handleDisconnectGmail = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('oauth_tokens')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('provider', 'gmail');
+
+      if (error) throw error;
+
+      setGmailConnected(false);
+      setGmailMessages([]);
+      toast.success("Gmail disconnected successfully");
+    } catch (error: any) {
+      console.error('Error disconnecting Gmail:', error);
+      toast.error(error.message || "Failed to disconnect Gmail");
+    }
+  };
+
+  const handleDisconnectClassroom = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('oauth_tokens')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('provider', 'classroom');
+
+      if (error) throw error;
+
+      setClassroomConnected(false);
+      setClassroomAnnouncements([]);
+      toast.success("Google Classroom disconnected successfully");
+    } catch (error: any) {
+      console.error('Error disconnecting Classroom:', error);
+      toast.error(error.message || "Failed to disconnect Google Classroom");
+    }
+  };
+
   // Handle clicking on a Gmail message to analyze it
   const handleMessageClick = async (message: any) => {
     const emailContent = `
@@ -324,38 +368,62 @@ ${message.body || ''}
       {/* Connection Buttons */}
       <div className="grid md:grid-cols-2 gap-4 mb-6">
         <div className="space-y-2">
-          <Button
-            onClick={gmailConnected ? fetchGmailMessages : handleConnectGmail}
-            className="w-full"
-            variant={gmailConnected ? "default" : "outline"}
-            disabled={fetchingGmail}
-          >
-            {fetchingGmail ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Mail className="mr-2 h-4 w-4" />
+          <div className="flex gap-2">
+            <Button
+              onClick={gmailConnected ? fetchGmailMessages : handleConnectGmail}
+              className="flex-1"
+              variant={gmailConnected ? "default" : "outline"}
+              disabled={fetchingGmail}
+            >
+              {fetchingGmail ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Mail className="mr-2 h-4 w-4" />
+              )}
+              {gmailConnected ? "Refresh Gmail" : "Connect Gmail"}
+            </Button>
+            {gmailConnected && (
+              <Button
+                onClick={handleDisconnectGmail}
+                variant="outline"
+                size="icon"
+                title="Disconnect Gmail"
+              >
+                <ExternalLink className="h-4 w-4 rotate-180" />
+              </Button>
             )}
-            {gmailConnected ? "Refresh Gmail" : "Connect Gmail"}
-          </Button>
+          </div>
           {gmailConnected && (
             <p className="text-xs text-muted-foreground text-center">✓ Connected</p>
           )}
         </div>
         
         <div className="space-y-2">
-          <Button
-            onClick={classroomConnected ? fetchClassroomAnnouncements : handleConnectClassroom}
-            className="w-full"
-            variant={classroomConnected ? "default" : "outline"}
-            disabled={fetchingClassroom}
-          >
-            {fetchingClassroom ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Calendar className="mr-2 h-4 w-4" />
+          <div className="flex gap-2">
+            <Button
+              onClick={classroomConnected ? fetchClassroomAnnouncements : handleConnectClassroom}
+              className="flex-1"
+              variant={classroomConnected ? "default" : "outline"}
+              disabled={fetchingClassroom}
+            >
+              {fetchingClassroom ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Calendar className="mr-2 h-4 w-4" />
+              )}
+              {classroomConnected ? "Refresh Classroom" : "Connect Google Classroom"}
+            </Button>
+            {classroomConnected && (
+              <Button
+                onClick={handleDisconnectClassroom}
+                variant="outline"
+                size="icon"
+                title="Disconnect Google Classroom"
+              >
+                <ExternalLink className="h-4 w-4 rotate-180" />
+              </Button>
             )}
-            {classroomConnected ? "Refresh Classroom" : "Connect Google Classroom"}
-          </Button>
+          </div>
           {classroomConnected && (
             <p className="text-xs text-muted-foreground text-center">✓ Connected</p>
           )}
