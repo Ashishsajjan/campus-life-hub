@@ -22,6 +22,8 @@ export default function Files() {
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isNoteDialogOpen, setIsNoteDialogOpen] = useState(false);
+  const [isAddSubjectDialogOpen, setIsAddSubjectDialogOpen] = useState(false);
+  const [newSubjectName, setNewSubjectName] = useState('');
   const [noteText, setNoteText] = useState('');
   const { toast } = useToast();
 
@@ -94,10 +96,51 @@ export default function Files() {
     return files.filter(f => f.subject === subject);
   };
 
+  const handleAddSubject = async () => {
+    if (!newSubjectName.trim()) {
+      toast({ title: 'Error', description: 'Please enter a subject name', variant: 'destructive' });
+      return;
+    }
+
+    // Check if subject already exists
+    if (subjects.some(s => s.toLowerCase() === newSubjectName.trim().toLowerCase())) {
+      toast({ title: 'Error', description: 'This subject already exists', variant: 'destructive' });
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Create a placeholder file entry for the new subject so it appears in the list
+    const { error } = await supabase.from('files').insert({
+      user_id: user.id,
+      file_name: '_subject_placeholder',
+      file_url: 'placeholder:subject',
+      subject: newSubjectName.trim(),
+      description: 'Subject created'
+    });
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Success', description: `Subject "${newSubjectName}" added` });
+      setIsAddSubjectDialogOpen(false);
+      setNewSubjectName('');
+      loadData();
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Subject Notes & Files</h1>
+        <Button
+          onClick={() => setIsAddSubjectDialogOpen(true)}
+          className="gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          Add Subject
+        </Button>
       </div>
 
       <p className="text-muted-foreground">
@@ -131,34 +174,36 @@ export default function Files() {
                 <CardContent className="space-y-3">
                   {/* Files/Notes List */}
                   <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                    {subjectFiles.length === 0 ? (
+                     {subjectFiles.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No files or notes yet</p>
                     ) : (
-                      subjectFiles.map((file) => {
-                        const isNote = file.file_url.startsWith('note:');
-                        return (
-                          <div
-                            key={file.id}
-                            className="p-2 glass rounded-lg border border-glass-border text-sm"
-                          >
-                            <div className="flex items-start gap-2">
-                              {isNote ? (
-                                <FileText className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                              ) : (
-                                <Upload className="w-4 h-4 text-secondary flex-shrink-0 mt-0.5" />
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium truncate">{file.file_name}</p>
-                                {isNote && (
-                                  <p className="text-xs text-muted-foreground line-clamp-2">
-                                    {file.file_url.substring(5)}
-                                  </p>
+                      subjectFiles
+                        .filter(file => file.file_name !== '_subject_placeholder') // Hide placeholder entries
+                        .map((file) => {
+                          const isNote = file.file_url.startsWith('note:');
+                          return (
+                            <div
+                              key={file.id}
+                              className="p-2 glass rounded-lg border border-glass-border text-sm"
+                            >
+                              <div className="flex items-start gap-2">
+                                {isNote ? (
+                                  <FileText className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                                ) : (
+                                  <Upload className="w-4 h-4 text-secondary flex-shrink-0 mt-0.5" />
                                 )}
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium truncate">{file.file_name}</p>
+                                  {isNote && (
+                                    <p className="text-xs text-muted-foreground line-clamp-2">
+                                      {file.file_url.substring(5)}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })
+                          );
+                        })
                     )}
                   </div>
 
@@ -242,6 +287,36 @@ export default function Files() {
             </div>
             <Button onClick={handleAddNote} className="w-full">
               Save Note
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Subject Dialog */}
+      <Dialog open={isAddSubjectDialogOpen} onOpenChange={setIsAddSubjectDialogOpen}>
+        <DialogContent className="glass-strong max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Subject</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="subject-name">Subject Name</Label>
+              <Input
+                id="subject-name"
+                value={newSubjectName}
+                onChange={(e) => setNewSubjectName(e.target.value)}
+                placeholder="e.g., Data Structures, Physics, History"
+                className="bg-background/50"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddSubject();
+                  }
+                }}
+              />
+            </div>
+            <Button onClick={handleAddSubject} className="w-full">
+              Add Subject
             </Button>
           </div>
         </DialogContent>
